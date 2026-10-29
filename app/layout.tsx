@@ -2,16 +2,11 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { shadcn } from "@clerk/ui/themes";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Pixelify_Sans } from "next/font/google";
+import { Suspense } from "react";
+import { ProfileSync } from "@/components/profile-sync";
 import "./globals.css";
-import { cn } from "@/lib/utils";
-
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const pixel = Pixelify_Sans({ variable: "--font-pixel", subsets: ["latin"], weight: ["400", "600", "700"] });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -19,38 +14,38 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Accede a GraphU",
-  description: "Inicia sesión en tu cuenta de GraphU.",
+  title: "GraphU | Conecta tus gustos. Descubre otra canción.",
+  description: "Explora recomendaciones y conexiones entre artistas y canciones con datos de MusicBrainz. Guarda favoritos y reúne tus descubrimientos en playlists.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
+      className={`${pixel.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
           localization={esES}
-          signInUrl="/"
+          signInUrl="/sign-in"
           signUpUrl="/sign-up"
-          signInFallbackRedirectUrl="/"
-          signUpFallbackRedirectUrl="/"
+          signInFallbackRedirectUrl="/sign-in"
+          signUpFallbackRedirectUrl="/sign-in"
           appearance={{
             theme: shadcn,
             variables: {
-              colorPrimary: "#2d6a4f",
-              colorPrimaryForeground: "#ffffff",
-              colorBackground: "#ffffff",
-              colorForeground: "#081c15",
-              colorMuted: "#d8f3dc",
-              colorMutedForeground: "#2d6a4f",
-              colorInput: "#ffffff",
-              colorInputForeground: "#081c15",
-              colorBorder: "#95d5b2",
-              colorRing: "#40916c",
-              borderRadius: "3px",
-              fontFamily: "Arial, sans-serif",
+              colorPrimary: "#dda15e",
+              colorPrimaryForeground: "#283618",
+              colorBackground: "#283618",
+              colorForeground: "#fefae0",
+              colorMuted: "#606c38",
+              colorMutedForeground: "#fefae0",
+              colorInput: "#283618",
+              colorInputForeground: "#fefae0",
+              colorBorder: "#606c38",
+              colorRing: "#dda15e",
+              borderRadius: "0px",
+              fontFamily: "var(--font-geist-mono), monospace",
             },
             elements: {
               rootBox: "auth-clerk-root",
@@ -64,6 +59,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             },
           }}
         >
+          <Suspense fallback={null}>
+            <ProfileSync />
+          </Suspense>
           {children}
         </ClerkProvider>
       </body>

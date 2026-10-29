@@ -1,5 +1,5 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-.impeccable
+/.impeccable/
 # dependencies
 /node_modules
 /.pnp
@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/.vitest/
+/test-results/
+/playwright-report/
 
 # next.js
 /.next/
@@ -19,19 +22,44 @@
 
 # production
 /build
+/dist/
+
+# tool caches
+/.cache/
+/.turbo/
+.eslintcache
+.stylelintcache
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.pem
+*.key
+*.p12
+*.pfx
+*.swp
+*.swo
+*~
+
+# local editor configuration
+/.idea/
+/.vscode/*.local.json
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+/logs/
 
-# env files (can opt-in for committing if needed)
+# local environment files; keep the shared template versioned
 .env*
+!.env.example
+
+# generated Prisma client
+/lib/generated/prisma/
 
 # vercel
 .vercel

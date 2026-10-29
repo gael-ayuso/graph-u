@@ -5,9 +5,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <main className="auth-page">
       <div className="auth-content">
         <Link href="/" className="auth-brand" aria-label="GraphU, inicio">
-          GraphU
+          GraphU<span className="brand-cursor" aria-hidden="true" />
         </Link>
         {children}
+        <Link href="/" className="auth-back">← Volver al inicio</Link>
       </div>
     </main>
   );

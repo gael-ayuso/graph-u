@@ -2,12 +2,12 @@
 name: GraphU
 description: A warm terminal interface for music discovery.
 colors:
-  olive: "#606c38"
-  forest: "#283618"
-  cream: "#fefae0"
-  clay: "#dda15e"
-  copper: "#bc6c25"
-  destructive: "#f3a391"
+  olive: "#665c54"
+  forest: "#282828"
+  cream: "#ebdbb2"
+  clay: "#fabd2f"
+  copper: "#fe8019"
+  destructive: "#fb4934"
 typography:
   display:
     fontFamily: "Geist Mono, monospace"
@@ -69,27 +69,27 @@ components:
 
 **Creative North Star: "Warm terminal"**
 
-GraphU uses the approved Ratatui-inspired direction: a forest canvas, warm cream text, restrained earth accents, a block wordmark and readable monospace content. Rectangular frames, thin rules and geometric SVG connections give musical relationships a clear visual structure.
+GraphU uses a Ratatui-inspired terminal layout with the Gruvbox Dark medium-contrast palette: a charcoal canvas, warm cream text, yellow actions, orange accents and green graph nodes. Rectangular frames, thin rules and geometric SVG connections give musical relationships a clear visual structure.
 
 **Key Characteristics:**
 
-- Pixel wordmark with a clay cursor.
+- Geist Mono wordmark with a yellow cursor.
 - Legible monospace content.
 - Square frames and flat, warm surfaces.
 - Original album covers and geometric line art.
 
 ## Colors
 
-The frontmatter records the five approved brand colors and the implemented destructive-state color.
+The frontmatter records the core Gruvbox Dark colors under the existing token names. The shared theme also defines graph green (#b8bb26) and aqua (#8ec07c).
 
-- **Olive Leaf:** borders, dividers and secondary surfaces.
-- **Black Forest:** page, cards and input backgrounds; text on clay actions.
-- **Cornsilk:** primary text and the primary action's hover fill.
-- **Sunlit Clay:** primary actions, highlighted words, cursor and focus outlines.
-- **Copperwood:** outlined action and sign-in borders.
+- **Dark3 (#665c54):** borders, dividers and secondary surfaces.
+- **Dark0 (#282828):** page, cards and input backgrounds; text on primary actions.
+- **Light1 (#ebdbb2):** primary text and the primary action's hover fill.
+- **Bright yellow (#fabd2f):** primary actions, highlighted words, cursor and focus outlines.
+- **Bright orange (#fe8019):** outlined action and sign-in borders.
 - **Destructive:** the separate semantic error color.
 
-Subtle preview surfaces use olive mixed into forest at 32% and 20%. Illustration lines mix cream at 50% with olive.
+Subtle preview surfaces mix dark3 into dark0 at 32% and 20%. Illustration lines mix light1 at 50% with dark3. Palette source: https://github.com/morhetz/gruvbox.
 
 ## Typography
 

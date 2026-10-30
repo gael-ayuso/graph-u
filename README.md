@@ -1,8 +1,8 @@
-﻿# GraphU
+# GraphU
 
 Aplicación web de exploración y recomendación musical que busca conectar canciones, artistas, álbumes y géneros mediante grafos interactivos y recomendaciones personalizadas con datos de MusicBrainz.
 
-Este README integra el alcance de [REQUIEREMENTS.md](REQUIEREMENTS.md), donde el proyecto se denomina **MusicGraph**. En este repositorio se utiliza el nombre **GraphU**.
+Este README integra el alcance de [REQUIEREMENTS.md](REQUIEREMENTS.md). El nombre del proyecto es **GraphU**; su identificador de paquete es `graph-u`.
 
 ## Contenido
 
@@ -56,6 +56,8 @@ Clerk administra las cuentas OAuth y las sesiones; PostgreSQL y Prisma almacenan
 
 ### Arquitectura objetivo
 
+La visualización de grafos utilizará [react-vis-graph-wrapper](https://github.com/Wokstym/react-vis-graph-wrapper), un componente de React basado en vis.js para representar nodos y conexiones musicales de forma interactiva.
+
 El documento de requisitos plantea una arquitectura cliente-servidor que separa interfaz, lógica de negocio y persistencia:
 
 ```text
@@ -63,7 +65,7 @@ Usuario
    |
    v
 Next.js + React + TypeScript
-Zustand · TanStack Query · Tailwind CSS · shadcn/ui · Cytoscape.js
+Zustand · TanStack Query · Tailwind CSS · shadcn/ui · react-vis-graph-wrapper
    |
    | HTTP / JSON
    v
@@ -75,9 +77,9 @@ PostgreSQL
 Esquemas propuestos: musicbrainz y app
 ```
 
-En esta propuesta, Zustand administra canciones semilla, filtros y nodos activos; TanStack Query gestiona consultas y mutaciones; Cytoscape.js representa las relaciones musicales; y FastAPI concentra las operaciones de negocio, las consultas al catálogo y los algoritmos. Las credenciales de PostgreSQL permanecen en el servidor.
+En esta propuesta, Zustand administra canciones semilla, filtros y nodos activos; TanStack Query gestiona consultas y mutaciones; react-vis-graph-wrapper representa las relaciones musicales; y FastAPI concentra las operaciones de negocio, las consultas al catálogo y los algoritmos. Las credenciales de PostgreSQL permanecen en el servidor.
 
-FastAPI, Cytoscape.js y los algoritmos de Python forman parte de la arquitectura prevista. La autenticación actual utiliza Clerk y los perfiles se gestionan desde Next.js con Prisma.
+FastAPI, react-vis-graph-wrapper y los algoritmos de Python forman parte de la arquitectura prevista. La autenticación actual utiliza Clerk y los perfiles se gestionan desde Next.js con Prisma.
 
 ## Requisitos
 
@@ -165,7 +167,7 @@ Este modelo representa el diseño objetivo. La persistencia de perfiles implemen
 | Etapa | Alcance previsto |
 | --- | --- |
 | 1. Funcionalidades principales | Usuarios, búsqueda musical, favoritos, playlists, CRUD y recomendaciones por etiquetas con TF-IDF y similitud coseno |
-| 2. Grafos | Visualización con Cytoscape.js, Personalized PageRank con NetworkX y recomendaciones explicables mediante conexiones musicales |
+| 2. Grafos | Visualización con react-vis-graph-wrapper, Personalized PageRank con NetworkX y recomendaciones explicables mediante conexiones musicales |
 | 3. Recomendador híbrido | Integración de ListenBrainz para similitud colaborativa, combinación de algoritmos y diversificación de resultados |
 | 4. Similitud acústica | Características acústicas cuando existan datos disponibles, análisis con Essentia, integración prevista con AcousticBrainz y embeddings con pgvector |
 | 5. Evaluación | Registro de interacciones, análisis de favoritos y rechazos, métricas, comparación de algoritmos y mejoras progresivas |

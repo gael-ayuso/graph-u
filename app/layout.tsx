@@ -6,6 +6,7 @@ import { Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { ProfileSync } from "@/components/profile-sync";
 import "./globals.css";
+import "./gruvbox.css";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -33,16 +34,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           appearance={{
             theme: shadcn,
             variables: {
-              colorPrimary: "#dda15e",
-              colorPrimaryForeground: "#283618",
-              colorBackground: "#283618",
-              colorForeground: "#fefae0",
-              colorMuted: "#606c38",
-              colorMutedForeground: "#fefae0",
-              colorInput: "#283618",
-              colorInputForeground: "#fefae0",
-              colorBorder: "#606c38",
-              colorRing: "#dda15e",
+              colorPrimary: "#fabd2f",
+              colorPrimaryForeground: "#282828",
+              colorBackground: "#282828",
+              colorForeground: "#ebdbb2",
+              colorMuted: "#665c54",
+              colorMutedForeground: "#ebdbb2",
+              colorInput: "#282828",
+              colorInputForeground: "#ebdbb2",
+              colorBorder: "#665c54",
+              colorRing: "#fabd2f",
               borderRadius: "0px",
               fontFamily: "var(--font-geist-mono), monospace",
             },

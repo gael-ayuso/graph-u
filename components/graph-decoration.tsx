@@ -21,10 +21,10 @@ export function GraphDecoration({ compact = false }: { compact?: boolean }) {
         </>
       ) : (
         <>
-          <g stroke="var(--olive)" strokeWidth="1.5">
+          <g stroke="var(--graph-aqua)" strokeWidth="1.5">
             <path d="m12 48 50-30 44 29 49-32 52 29M12 48l53 28 41-29 48 28 53-31M62 18l3 58m90-61-1 60M62 18l92 57M65 76l90-61" />
           </g>
-          <g stroke="var(--clay)" strokeWidth="1.5" fill="var(--forest)">
+          <g stroke="var(--graph-green)" strokeWidth="1.5" fill="var(--forest)">
             <circle cx="12" cy="48" r="5" />
             <circle cx="62" cy="18" r="6" />
             <circle cx="65" cy="76" r="4" />

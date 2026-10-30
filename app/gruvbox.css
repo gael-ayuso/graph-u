@@ -1,0 +1,15 @@
+/* Gruvbox Dark (medium contrast). Shared by the public pages and auth shell. */
+:root {
+  --forest: #282828;
+  --cream: #ebdbb2;
+  --olive: #665c54;
+  --clay: #fabd2f;
+  --copper: #fe8019;
+  --graph-green: #b8bb26;
+  --graph-aqua: #8ec07c;
+  --destructive: #fb4934;
+}
+
+.graph-mark { color: var(--graph-green); }
+.art-accent { color: var(--copper); }
+.demo-error { border-color: var(--destructive); }

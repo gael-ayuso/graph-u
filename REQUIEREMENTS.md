@@ -1,8 +1,8 @@
-# MusicGraph — Documento de Requisitos
+# GraphU — Documento de Requisitos
 
 ## 1. Nombre de la aplicación
 
-**MusicGraph**
+**GraphU**
 
 Aplicación web de exploración musical, visualización de relaciones mediante grafos y generación de recomendaciones personalizadas.
 
@@ -12,7 +12,7 @@ Actualmente existen grandes catálogos musicales que permiten consultar cancione
 
 Además, muchos sistemas de recomendación presentan canciones sin proporcionar una explicación clara de las relaciones que motivaron dichas sugerencias.
 
-**MusicGraph** busca atender esta necesidad mediante una aplicación web que permita explorar información musical, visualizar conexiones entre canciones, artistas, álbumes y géneros, y obtener recomendaciones personalizadas.
+**GraphU** busca atender esta necesidad mediante una aplicación web que permita explorar información musical, visualizar conexiones entre canciones, artistas, álbumes y géneros, y obtener recomendaciones personalizadas.
 
 Para ello, se utilizará **MusicBrainz** como fuente principal de información musical, aprovechando su catálogo de artistas, grabaciones, álbumes, géneros y relaciones.
 
@@ -98,7 +98,7 @@ Los tiempos establecidos en RNF-01 y RNF-02 representan objetivos iniciales que 
 
 ## 5. Integración del FrontEnd y BackEnd
 
-MusicGraph utilizará una arquitectura web cliente-servidor que separará la interfaz, la lógica de negocio y el almacenamiento de información.
+GraphU utilizará una arquitectura web cliente-servidor que separará la interfaz, la lógica de negocio y el almacenamiento de información.
 
 ### 5.1. FrontEnd
 
@@ -113,7 +113,7 @@ El FrontEnd se desarrollará utilizando **Next.js con React y TypeScript**.
 | TanStack Query | Consultas, caché y sincronización con el servidor |
 | Tailwind CSS | Diseño visual y estilos responsivos |
 | shadcn/ui | Componentes reutilizables de interfaz |
-| Cytoscape.js | Visualización interactiva de grafos musicales |
+| react-vis-graph-wrapper | Visualización interactiva de grafos musicales |
 
 ### 5.2. BackEnd
 
@@ -208,7 +208,7 @@ La aplicación permitirá realizar operaciones de creación, lectura, actualizac
 - Quitar canciones de playlists.
 - Eliminar canciones y artistas favoritos.
 
-Las tablas propias de MusicGraph se relacionarán con MusicBrainz mediante identificadores musicales, evitando la duplicación innecesaria de información.
+Las tablas propias de GraphU se relacionarán con MusicBrainz mediante identificadores musicales, evitando la duplicación innecesaria de información.
 
 ## 7. Tecnologías propuestas
 
@@ -218,7 +218,7 @@ Las tablas propias de MusicGraph se relacionarán con MusicBrainz mediante ident
 | Estado de interfaz | Zustand |
 | Datos del servidor | TanStack Query |
 | Diseño visual | Tailwind CSS, shadcn/ui |
-| Visualización de grafos | Cytoscape.js |
+| Visualización de grafos | react-vis-graph-wrapper |
 | BackEnd | Python, FastAPI |
 | Algoritmos | scikit-learn, NetworkX, NumPy |
 | Base de datos | PostgreSQL, MusicBrainz |
@@ -237,7 +237,7 @@ Las tablas propias de MusicGraph se relacionarán con MusicBrainz mediante ident
 
 ### Etapa 2. Grafos
 
-- Visualización de relaciones musicales mediante Cytoscape.js.
+- Visualización de relaciones musicales mediante react-vis-graph-wrapper.
 - Implementación de Personalized PageRank con NetworkX.
 - Generación de recomendaciones basadas en relaciones musicales.
 
@@ -262,7 +262,7 @@ Las tablas propias de MusicGraph se relacionarán con MusicBrainz mediante ident
 
 ## 9. Conclusión
 
-MusicGraph será una aplicación web orientada a la exploración, visualización y recomendación musical.
+GraphU será una aplicación web orientada a la exploración, visualización y recomendación musical.
 
 El proyecto integrará tecnologías modernas de desarrollo FrontEnd y BackEnd con una base de datos relacional, operaciones CRUD y algoritmos de recomendación.
 

@@ -33,11 +33,11 @@
 }
 
 :root {
-  --olive: #606c38;
-  --forest: #283618;
-  --cream: #fefae0;
-  --clay: #dda15e;
-  --copper: #bc6c25;
+  --olive: #665c54;
+  --forest: #282828;
+  --cream: #ebdbb2;
+  --clay: #fabd2f;
+  --copper: #fe8019;
   --background: var(--forest);
   --foreground: var(--cream);
   --primary: var(--clay);
@@ -55,7 +55,7 @@
   --border: var(--olive);
   --input: var(--forest);
   --ring: var(--clay);
-  --destructive: #f3a391;
+  --destructive: #fb4934;
   --radius: 0;
   color-scheme: dark;
   scrollbar-color: var(--olive) var(--forest);

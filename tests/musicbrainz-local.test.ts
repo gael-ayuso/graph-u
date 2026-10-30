@@ -1,11 +1,14 @@
 ﻿import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { MusicBrainzError, searchSongs } from "@/lib/musicbrainz";
 
-const { query, configure } = vi.hoisted(() => ({ query: vi.fn(), configure: vi.fn() }));
+const { query, configure, end } = vi.hoisted(() => ({
+  query: vi.fn(), configure: vi.fn(), end: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("pg", () => ({
   Pool: class {
     constructor(options: unknown) { configure(options); }
     query = query;
+    end = end;
     on = vi.fn();
   },
 }));
@@ -17,9 +20,29 @@ describe("MusicBrainz local PostgreSQL queries", () => {
     delete (globalThis as typeof globalThis & { graphUMusicPool?: unknown }).graphUMusicPool;
     vi.stubEnv("MUSICBRAINZ_DATABASE_URL", "postgresql://musicbrainz:test@127.0.0.1:5433/musicbrainz");
     query.mockReset();
+    configure.mockClear();
+    end.mockClear();
     query.mockResolvedValueOnce(catalog).mockResolvedValue({ rows: [] });
   });
   afterEach(() => vi.unstubAllEnvs());
+
+  it("reuses the pool until the configured database changes", async () => {
+    query.mockReset();
+    query.mockImplementation((sql: string) => Promise.resolve(
+      sql.includes("to_regclass") ? catalog : { rows: [] },
+    ));
+    await searchSongs("Reckoner", "Radiohead");
+    await searchSongs("Creep", "Radiohead");
+    expect(configure).toHaveBeenCalledTimes(1);
+    expect(end).not.toHaveBeenCalled();
+
+    const connectionString = "postgresql://musicbrainz:test@127.0.0.1:5434/musicbrainz_db";
+    vi.stubEnv("MUSICBRAINZ_DATABASE_URL", connectionString);
+    await searchSongs("Reckoner", "Radiohead");
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(configure).toHaveBeenCalledTimes(2);
+    expect(configure.mock.lastCall?.[0].connectionString).toBe(connectionString);
+  });
 
   it("uses a read-only connection and parameterized SQL for arbitrary search text", async () => {
     const title = "Robert'; DROP TABLE recording; --";

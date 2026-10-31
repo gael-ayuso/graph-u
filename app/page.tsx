@@ -3,6 +3,7 @@ import { Show, UserButton } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { MusicPreview } from "@/components/music-preview";
 import { FeatureArt } from "@/components/feature-art";
+import { GraphDecoration } from "@/components/graph-decoration";
 
 const features = [
   { id: "favorites", title: "Favoritos", description: "Guarda artistas y canciones.", type: "favorites" },
@@ -15,7 +16,7 @@ export default function Home() {
     <div className="landing">
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="site-header">
-        <Link href="/" className="site-brand" aria-label="GraphU, inicio">GraphU<span className="brand-cursor" aria-hidden="true" /></Link>
+        <Link href="/" className="site-brand" aria-label="GraphU, inicio"><GraphDecoration compact />GraphU<span className="brand-cursor" aria-hidden="true" /></Link>
         <nav className="site-nav" aria-label="Navegación principal">
           <a href="#como-funciona">Cómo funciona</a>
           <a href="#tu-coleccion">Tu colección</a>
@@ -40,7 +41,10 @@ export default function Home() {
           <MusicPreview />
         </section>
         <section className="discovery-section" id="como-funciona" aria-labelledby="discovery-title">
-          <h2 id="discovery-title">Tu música, con nuevas conexiones.</h2>
+          <div className="discovery-heading">
+            <h2 id="discovery-title">Tu música, con nuevas conexiones.</h2>
+            <GraphDecoration />
+          </div>
           <p className="section-description">Guarda lo que te gusta, descubre relaciones entre artistas y canciones,<br className="desktop-break" /> y crea playlists con nuevas recomendaciones.</p>
           <div className="features" id="tu-coleccion">
             {features.map((feature) => (

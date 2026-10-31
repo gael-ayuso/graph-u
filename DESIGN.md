@@ -10,7 +10,7 @@ colors:
   destructive: "#f3a391"
 typography:
   display:
-    fontFamily: "Pixelify Sans, monospace"
+    fontFamily: "Geist Mono, monospace"
     fontSize: "clamp(96px, 8.75vw, 132px)"
     fontWeight: 700
     lineHeight: 1
@@ -93,9 +93,9 @@ Subtle preview surfaces use olive mixed into forest at 32% and 20%. Illustration
 
 ## Typography
 
-Pixelify Sans is confined to the GraphU brand. Geist Mono carries headings, body copy, controls and Clerk forms, with monospace fallbacks. Desktop hero typography is specified above; other text sizes respond to viewport width.
+Geist Mono carries the GraphU brand, headings, body copy, controls and Clerk forms, with monospace fallbacks. Desktop hero typography is specified above; other text sizes respond to viewport width.
 
-The hero description stays within 48ch on desktop. Section headings use a responsive 26–52px scale; feature titles use 20–24px. Auth titles use 23px. Keep the pixel treatment away from reading text.
+The hero description stays within 48ch on desktop. Section headings use a responsive 26–52px scale; feature titles use 20–24px. Auth titles use 23px. Use the same plain monospace family throughout.
 
 ## Layout
 
@@ -116,7 +116,7 @@ Controls and cards have square corners. Thin olive rules define sections and fra
 ## Components
 
 - **Actions:** clay filled primary and copper outlined secondary links. Hover fills change to cream or clay respectively. Desktop actions are at least 60px high; mobile actions are at least 49px.
-- **Navigation:** monospace text links, a framed account link and a compact pixel brand. Text links turn clay on hover.
+- **Navigation:** monospace text links, a framed account link and a compact monospace brand. Text links turn clay on hover.
 - **Music preview:** a bordered figure with a caption bar, two album covers, artist names, outlined song labels and geometric connections. Its “Vista ilustrativa” label is essential; this component presents a static example.
 - **Feature artwork:** decorative inline SVGs accompany feature copy and are hidden from assistive technology.
 - **Authentication:** Clerk retains its form behavior and Spanish localization inside the shared square shell. Inputs, social buttons and submit actions have a minimum height of 44px.
@@ -126,7 +126,7 @@ Cover provenance is recorded in [public/music/SOURCES.md](public/music/SOURCES.m
 
 ## Do's and Don'ts
 
-- Do use Pixelify Sans for the GraphU brand and Geist Mono for reading.
+- Do use Geist Mono for the GraphU brand and reading.
 - Do retain square frames, thin rules and the approved earth palette.
 - Do keep illustrative music connections explicitly labeled.
 - Don't add playback controls or imply the static preview computes recommendations.

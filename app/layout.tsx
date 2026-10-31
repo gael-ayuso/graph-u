@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { shadcn } from "@clerk/ui/themes";
-import { Geist_Mono, Pixelify_Sans } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { ProfileSync } from "@/components/profile-sync";
 import "./globals.css";
-const pixel = Pixelify_Sans({ variable: "--font-pixel", subsets: ["latin"], weight: ["400", "600", "700"] });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
@@ -22,7 +21,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${pixel.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider

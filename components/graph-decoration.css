@@ -1,0 +1,28 @@
+.graph-mark {
+  width: .7em;
+  height: .7em;
+  flex: none;
+  align-self: center;
+  margin-right: .25em;
+  color: var(--clay);
+}
+
+.graph-decoration {
+  flex: none;
+  width: clamp(110px, 15vw, 220px);
+  height: auto;
+}
+
+.discovery-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.discovery-heading h2 { flex: 1; }
+
+@media (max-width: 540px) {
+  .discovery-heading { align-items: flex-start; gap: 12px; }
+  .graph-decoration { width: 76px; margin-top: 6px; }
+}

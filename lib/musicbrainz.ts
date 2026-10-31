@@ -9,15 +9,20 @@ export class MusicBrainzError extends Error {
   }
 }
 
-const globalMusic = globalThis as typeof globalThis & { graphUMusicPool?: Pool };
+const globalMusic = globalThis as typeof globalThis & {
+  graphUMusicPool?: Pool;
+  graphUMusicConnectionString?: string;
+};
 
 function getMusicDb() {
-  if (!process.env.MUSICBRAINZ_DATABASE_URL) {
+  const connectionString = process.env.MUSICBRAINZ_DATABASE_URL;
+  if (!connectionString) {
     throw new MusicBrainzError("No está configurada la conexión de MusicBrainz local.", 503);
   }
-  if (!globalMusic.graphUMusicPool) {
+  if (!globalMusic.graphUMusicPool || globalMusic.graphUMusicConnectionString !== connectionString) {
+    if (globalMusic.graphUMusicPool) void globalMusic.graphUMusicPool.end().catch(() => {});
     const pool = new Pool({
-      connectionString: process.env.MUSICBRAINZ_DATABASE_URL,
+      connectionString,
       max: 3,
       connectionTimeoutMillis: 5_000,
       idleTimeoutMillis: 30_000,
@@ -26,6 +31,7 @@ function getMusicDb() {
     // pg removes failed idle connections; handle the event without exposing credentials.
     pool.on("error", () => {});
     globalMusic.graphUMusicPool = pool;
+    globalMusic.graphUMusicConnectionString = connectionString;
   }
   return globalMusic.graphUMusicPool;
 }

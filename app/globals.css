@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@clerk/ui/themes/shadcn.css";
@@ -75,7 +75,7 @@
 .skip-link { position: fixed; top: 12px; left: 12px; z-index: 100; padding: 12px 18px; background: var(--cream); color: var(--forest); transform: translateY(-180%); }
 .skip-link:focus { transform: translateY(0); }
 .site-header { min-height: 83px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--olive); }
-.site-brand, .auth-brand { display: inline-flex; align-items: baseline; color: var(--cream); font-family: var(--font-pixel), monospace; font-weight: 700; line-height: 1; text-decoration: none; }
+.site-brand, .auth-brand { display: inline-flex; align-items: baseline; color: var(--cream); font-family: var(--font-geist-mono), monospace; font-weight: 700; line-height: 1; text-decoration: none; }
 .site-brand { font-size: 47px; }
 .brand-cursor { display: inline-block; width: .2em; height: .24em; margin-left: .08em; background: var(--clay); }
 .site-nav { display: flex; align-items: center; gap: 40px; font-size: 17px; }
@@ -87,7 +87,7 @@
 
 .hero { display: grid; grid-template-columns: 1fr 1.04fr; gap: 32px; padding: 30px 0 36px; align-items: center; border-bottom: 1px solid var(--olive); }
 .hero-copy { min-width: 0; }
-.hero-wordmark { display: flex; align-items: baseline; width: max-content; font-family: var(--font-pixel), monospace; font-size: clamp(96px, 8.75vw, 132px); font-weight: 700; line-height: 1; letter-spacing: -.025em; margin-bottom: 25px; }
+.hero-wordmark { display: flex; align-items: baseline; width: max-content; font-family: var(--font-geist-mono), monospace; font-size: clamp(96px, 8.75vw, 132px); font-weight: 700; line-height: 1; letter-spacing: -.025em; margin-bottom: 25px; }
 .hero-wordmark .brand-cursor { width: .14em; height: .25em; margin-left: .04em; }
 .hero h1 { margin: 0; font-size: clamp(27px, 3vw, 45px); font-weight: 700; line-height: 1.32; letter-spacing: -.035em; }
 .hero h1 span { color: var(--clay); }

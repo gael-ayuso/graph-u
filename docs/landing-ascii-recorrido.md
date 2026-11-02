@@ -44,7 +44,7 @@ A diferencia de una herramienta analítica o un visor técnico, la **Landing Pag
 El siguiente boceto representa la landing page de escritorio completa en 90 columnas de ancho (límite estricto $\le 92$ columnas):
 
 ```text
-+----------------------------------------------------------------------------------------+|
++----------------------------------------------------------------------------------------+
 |  GraphU_                      [Como funciona]   [Recorrido]   [Demo]   [Iniciar sesion]|
 |  ------------------------------------------------------------------------------------  |
 |  HERO EDITORIAL                                                                        |
@@ -77,7 +77,7 @@ El siguiente boceto representa la landing page de escritorio completa en 90 colu
 |  * Cancion : Reckoner                                                                  |
 |                                                                                        |
 |  [02] EXPLORA CONEXIONES  [ VISTA ILUSTRATIVA . GRAFO INTERACTIVO PREVISTO ]           |
-|  Visualizacion conceptual del puente entre dos obras y un ejemplo conceptual de conexiones.      |
+|  Un ejemplo conceptual de conexiones entre dos obras.                                  |
 |  (Muestra grafica ilustrativa; el explorador interactivo es un objetivo previsto):     |
 |                                                                                        |
 |  +------------------------------------------------------------------------------------+|
@@ -110,7 +110,7 @@ El siguiente boceto representa la landing page de escritorio completa en 90 colu
 |              ?Ya dispones de cuenta?  -->  [ Iniciar sesion ]  (/sign-in)              |
 |  --------------------------------------------------------------------------------------|
 |  Datos musicales: MusicBrainz                                                          |
-+----------------------------------------------------------------------------------------+|
++----------------------------------------------------------------------------------------+
 ```
 
 ---
@@ -120,7 +120,7 @@ El siguiente boceto representa la landing page de escritorio completa en 90 colu
 El siguiente boceto representa la adaptación vertical para pantallas móviles en 40 columnas de ancho (límite estricto $\le 40$ columnas):
 
 ```text
-+--------------------------------------+|
++--------------------------------------+
 | GraphU_                       [Menu] |
 | ------------------------------------ |
 | HERO EDITORIAL                       |
@@ -175,7 +175,7 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
 | ------------------------------------ |
 | GraphU_ . Terminal calida Ratatui    |
 | Datos: musicbrainz.org               |
-+--------------------------------------+|
++--------------------------------------+
 ```
 
 ---

@@ -44,77 +44,73 @@ A diferencia de una herramienta analítica o un visor técnico, la **Landing Pag
 El siguiente boceto representa la landing page de escritorio completa en 90 columnas de ancho (límite estricto $\le 92$ columnas):
 
 ```text
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│  GraphU_                      [Cómo funciona]   [Recorrido]   [Demo]   [Iniciar sesión]│
-│  ────────────────────────────────────────────────────────────────────────────────────  │
-│  HERO EDITORIAL                                                                        │
-│  ======================================================================================│
-│  CONECTA TUS GUSTOS.                                                                   │
-│  DESCUBRE OTRA CANCIÓN.                                                                │
-│                                                                                        │
-│  Explora conexiones entre artistas y canciones a partir de datos de MusicBrainz.       │
-│  Un recorrido guiado en 3 pasos hacia la futura exploración interactiva de grafos.     │
-│                                                                                        │
-│  [ CREAR CUENTA -> ]  (/sign-up)             [ PROBAR DEMO DE BÚSQUEDA ]  (/demo)      │
-│  (Primario: fondo Clay #fabd2f)              (Secundario: marco Copper #fe8019)        │
-│                                                                                        │
-│  ======================================================================================│
-│  RECORRIDO GUIADO  ::  3 PASOS HACIA EL DESCUBRIMIENTO MUSICAL                         │
-│  ======================================================================================│
-│ ┌────────────────────────┐    ┌────────────────────────┐    ┌────────────────────────┐ │
-│ │ PASO 01                │    │ PASO 02                │    │ PASO 03                │ │
-│ │ Parte de una canción   │ -> │ Explora conexiones     │ -> │ Reúne lo que te gusta  │ │
-│ │ Punto de partida base  │    │ Vista ilustrativa      │    │ Colecciona en listas   │ │
-│ │ Ej: Radiohead          │    │ Puente a Daft Punk     │    │ (Capacidad prevista)   │ │
-│ └────────────────────────┘    └────────────────────────┘    └────────────────────────┘ │
-│                                                                                        │
-│  DETALLE DEL RECORRIDO GUIADO                                                          │
-│  --------------------------------------------------------------------------------------│
-│  [01] PARTE DE UNA CANCIÓN DE REFERENCIA                                               │
-│  El recorrido comienza identificando una pieza musical concreta en MusicBrainz.        │
-│  (En /demo ya puedes buscar canciones por título o artista en el catálogo local):      │
-│  * Artista : Radiohead                                                                 │
-│  * Álbum   : In Rainbows (2007) · [Portada: Cover Art Archive]                         │
-│  * Canción : Reckoner                                                                  │
-│                                                                                        │
-│  [02] EXPLORA CONEXIONES  [ VISTA ILUSTRATIVA · GRAFO INTERACTIVO PREVISTO ]           │
-│  Visualización conceptual del puente entre dos obras y sus créditos documentados.      │
-│  (Muestra gráfica ilustrativa; el explorador interactivo es un objetivo previsto):     │
-│                                                                                        │
-│  ┌────────────────────────────────────────────────────────────────────────────────────┐│
-│  │ MAPA DE CONEXIONES                                           [ Vista ilustrativa ] ││
-│  │                                                                                    ││
-│  │   ┌───────────────────────────┐                  ┌───────────────────────────┐     ││
-│  │   │ Radiohead                 │ · · · · · · · · ·│ Daft Punk                 │     ││
-│  │   │ [In Rainbows, 2007]       │  Vínculo sonoro  │ [Discovery, 2001]         │     ││
-│  │   │ Canción: Reckoner         │   ilustrativo    │ Canción: Digital Love     │     ││
-│  │   └───────────────────────────┘                  └───────────────────────────┘     ││
-│  │                 │                                              │                   ││
-│  │                 v                                              v                   ││
-│  │   [ Art-Rock / Arpegios ]                        [ French House / Sintetizadores ] ││
-│  │                                                                                    ││
-│  │   Aviso: Conexión ilustrativa estática. Sin reproducción de audio ni motor activo. ││
-│  └────────────────────────────────────────────────────────────────────────────────────┘│
-│                                                                                        │
-│  [03] REÚNE LO QUE TE GUSTA  (Capacidades previstas en plataforma)                     │
-│  Organización de hallazgos para enriquecer tu biblioteca personal:                     │
-│  * Favoritos : Guardar artistas y canciones predilectas (capacidad prevista).          │
-│  * Playlists : Reunir recomendaciones en listas de escucha (capacidad prevista).       │
-│  * Feedback  : Valorar sugerencias recibidas (capacidad prevista).                     │
-│                                                                                        │
-│  ======================================================================================│
-│  COMIENZA HOY MISMO                                                                    │
-│                                                                                        │
-│         [ CREAR CUENTA ]                          [ PROBAR DEMO DE BÚSQUEDA ]          │
-│       (Destino: /sign-up)                             (Destino: /demo)                 │
-│   Botón lleno Clay (#fabd2f)                    Botón con marco Copper (#fe8019)       │
-│   Registro Clerk en español                     Búsqueda directa en catálogo local     │
-│                                                                                        │
-│              ¿Ya dispones de cuenta?  -->  [ Iniciar sesión ]  (/sign-in)              │
-│  --------------------------------------------------------------------------------------│
-│  GraphU_ (2026) · Terminal estética Gruvbox Dark inspirada en Ratatui                  │
-│  Metadatos musicales: MusicBrainz · Fuentes de carátulas: public/music/SOURCES.md      │
-└────────────────────────────────────────────────────────────────────────────────────────┘
++----------------------------------------------------------------------------------------+|
+|  GraphU_                      [Como funciona]   [Recorrido]   [Demo]   [Iniciar sesion]|
+|  ------------------------------------------------------------------------------------  |
+|  HERO EDITORIAL                                                                        |
+|  ======================================================================================|
+|  CONECTA TUS GUSTOS.                                                                   |
+|  DESCUBRE OTRA CANCION.                                                                |
+|                                                                                        |
+|  Explora conexiones entre artistas y canciones a partir de datos de MusicBrainz.       |
+|  Un recorrido guiado en 3 pasos hacia la futura exploracion interactiva de grafos.     |
+|                                                                                        |
+|  [ CREAR CUENTA -> ]  (/sign-up)             [ PROBAR DEMO DE BUSQUEDA ]  (/demo)      |
+|                                                                                        |
+|  ======================================================================================|
+|  RECORRIDO GUIADO  ::  3 PASOS HACIA EL DESCUBRIMIENTO MUSICAL                         |
+|  ======================================================================================|
+| +------------------------+    +------------------------+    +------------------------+ |
+| | PASO 01                |    | PASO 02                |    | PASO 03                | |
+| | Parte de una cancion   | -> | Explora conexiones     | -> | Reune lo que te gusta  | |
+| | Punto de partida base  |    | Vista ilustrativa      |    | Colecciona en listas   | |
+| | Ej: Radiohead          |    | Puente a Daft Punk     |    | (Capacidad prevista)   | |
+| +------------------------+    +------------------------+    +------------------------+ |
+|                                                                                        |
+|  DETALLE DEL RECORRIDO GUIADO                                                          |
+|  --------------------------------------------------------------------------------------|
+|  [01] PARTE DE UNA CANCION DE REFERENCIA                                               |
+|  El recorrido comienza identificando una pieza musical concreta en MusicBrainz.        |
+|  (En /demo ya puedes buscar canciones por titulo o artista en el catalogo local):      |
+|  * Artista : Radiohead                                                                 |
+|  * Album   : In Rainbows (2007) . [Portada: Cover Art Archive]                         |
+|  * Cancion : Reckoner                                                                  |
+|                                                                                        |
+|  [02] EXPLORA CONEXIONES  [ VISTA ILUSTRATIVA . GRAFO INTERACTIVO PREVISTO ]           |
+|  Visualizacion conceptual del puente entre dos obras y un ejemplo conceptual de conexiones.      |
+|  (Muestra grafica ilustrativa; el explorador interactivo es un objetivo previsto):     |
+|                                                                                        |
+|  +------------------------------------------------------------------------------------+|
+|  | MAPA DE CONEXIONES                                           [ Vista ilustrativa ] ||
+|  |                                                                                    ||
+|  |   +---------------------------+                  +---------------------------+     ||
+|  |   | Radiohead                 | . . . . . . . . .| Daft Punk                 |     ||
+|  |   | [In Rainbows, 2007]       |  Vinculo sonoro  | [Discovery, 2001]         |     ||
+|  |   | Cancion: Reckoner         |   ilustrativo    | Cancion: Digital Love     |     ||
+|  |   +---------------------------+                  +---------------------------+     ||
+|  |                 |                                              |                   ||
+|  |                 v                                              v                   ||
+|  |   [ Art-Rock / Arpegios ]                        [ French House / Sintetizadores ] ||
+|  |                                                                                    ||
+|  |   Aviso: Conexion ilustrativa estatica. Sin reproduccion de audio ni motor activo. ||
+|  +------------------------------------------------------------------------------------+|
+|                                                                                        |
+|  [03] REUNE LO QUE TE GUSTA  (Capacidades previstas en plataforma)                     |
+|  Organizacion de hallazgos para enriquecer tu biblioteca personal:                     |
+|  * Favoritos : Guardar artistas y canciones predilectas (capacidad prevista).          |
+|  * Playlists : Reunir recomendaciones en listas de escucha (capacidad prevista).       |
+|  * Feedback  : Valorar sugerencias recibidas (capacidad prevista).                     |
+|                                                                                        |
+|  ======================================================================================|
+|  COMIENZA HOY MISMO                                                                    |
+|                                                                                        |
+|         [ CREAR CUENTA ]                          [ PROBAR DEMO DE BUSQUEDA ]          |
+|       (Destino: /sign-up)                             (Destino: /demo)                 |
+|                                                                                        |
+|              ?Ya dispones de cuenta?  -->  [ Iniciar sesion ]  (/sign-in)              |
+|  --------------------------------------------------------------------------------------|
+|  Datos musicales: MusicBrainz                                                          |
++----------------------------------------------------------------------------------------+|
 ```
 
 ---
@@ -124,63 +120,62 @@ El siguiente boceto representa la landing page de escritorio completa en 90 colu
 El siguiente boceto representa la adaptación vertical para pantallas móviles en 40 columnas de ancho (límite estricto $\le 40$ columnas):
 
 ```text
-┌──────────────────────────────────────┐
-│ GraphU_                       [Menú] │
-│ ──────────────────────────────────── │
-│ HERO EDITORIAL                       │
-│ ==================================== │
-│ CONECTA TUS GUSTOS.                  │
-│ DESCUBRE OTRA CANCIÓN.               │
-│                                      │
-│ Explora relaciones entre artistas y  │
-│ canciones con datos MusicBrainz.     │
-│                                      │
-│ [ CREAR CUENTA ]     -> /sign-up     │
-│ (Primario: fondo Clay #fabd2f)       │
-│                                      │
-│ [ PROBAR DEMO ]      -> /demo        │
-│ (Búsqueda en catálogo local)         │
-│                                      │
-│ ==================================== │
-│ RECORRIDO GUIADO EN 3 PASOS          │
-│ ==================================== │
-│ [01] PARTE DE UNA CANCIÓN            │
-│ Anclaje en pieza de partida:         │
-│ * Radiohead - Reckoner               │
-│   (Álbum: In Rainbows, 2007)         │
-│                  │                   │
-│                  v                   │
-│ [02] EXPLORA CONEXIONES              │
-│ Salto ilustrativo entre artistas:    │
-│                                      │
-│ ┌──────────────────────────────────┐ │
-│ │ [ Vista ilustrativa ]            │ │
-│ │                                  │ │
-│ │ Radiohead (Reckoner)             │ │
-│ │       · · · · · · · · ·          │ │
-│ │       : Vínculo sonoro           │ │
-│ │       v ilustrativo              │ │
-│ │ Daft Punk (Digital Love)         │ │
-│ │                                  │ │
-│ │ Sin playback ni motor activo     │ │
-│ └──────────────────────────────────┘ │
-│                  │                   │
-│                  v                   │
-│ [03] REÚNE LO QUE TE GUSTA           │
-│ Capacidades futuras previstas:       │
-│ * Favoritos : Guardar artistas       │
-│ * Playlists : Listas de temas        │
-│ * Feedback  : Valorar hallazgos      │
-│                                      │
-│ ==================================== │
-│ EMPIEZA TU RECORRIDO                 │
-│ [ CREAR CUENTA ]  -> /sign-up        │
-│ [ PROBAR DEMO ]   -> /demo           │
-│ ¿Tienes cuenta?   -> /sign-in        │
-│ ------------------------------------ │
-│ GraphU_ · Terminal cálida Ratatui    │
-│ Datos: musicbrainz.org               │
-└──────────────────────────────────────┘
++--------------------------------------+|
+| GraphU_                       [Menu] |
+| ------------------------------------ |
+| HERO EDITORIAL                       |
+| ==================================== |
+| CONECTA TUS GUSTOS.                  |
+| DESCUBRE OTRA CANCION.               |
+|                                      |
+| Explora relaciones entre artistas y  |
+| canciones con datos MusicBrainz.     |
+|                                      |
+| [ CREAR CUENTA ]     -> /sign-up     |
+|                                      |
+| [ PROBAR DEMO ]      -> /demo        |
+| (Busqueda en catalogo local)         |
+|                                      |
+| ==================================== |
+| RECORRIDO GUIADO EN 3 PASOS          |
+| ==================================== |
+| [01] PARTE DE UNA CANCION            |
+| Anclaje en pieza de partida:         |
+| * Radiohead - Reckoner               |
+|   (Album: In Rainbows, 2007)         |
+|                  |                   |
+|                  v                   |
+| [02] EXPLORA CONEXIONES              |
+| Salto ilustrativo entre artistas:    |
+|                                      |
+| +----------------------------------+ |
+| | [ Vista ilustrativa ]            | |
+| |                                  | |
+| | Radiohead (Reckoner)             | |
+| |       . . . . . . . . .          | |
+| |       : Vinculo sonoro           | |
+| |       v ilustrativo              | |
+| | Daft Punk (Digital Love)         | |
+| |                                  | |
+| | Sin playback ni motor activo     | |
+| +----------------------------------+ |
+|                  |                   |
+|                  v                   |
+| [03] REUNE LO QUE TE GUSTA           |
+| Capacidades futuras previstas:       |
+| * Favoritos : Guardar artistas       |
+| * Playlists : Listas de temas        |
+| * Feedback  : Valorar hallazgos      |
+|                                      |
+| ==================================== |
+| EMPIEZA TU RECORRIDO                 |
+| [ CREAR CUENTA ]  -> /sign-up        |
+| [ PROBAR DEMO ]   -> /demo           |
+| ?Tienes cuenta?   -> /sign-in        |
+| ------------------------------------ |
+| GraphU_ . Terminal calida Ratatui    |
+| Datos: musicbrainz.org               |
++--------------------------------------+|
 ```
 
 ---
@@ -194,5 +189,5 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
   - `Clay (#fabd2f)`: Acciones primarias (`/sign-up`), cursor de terminal `_` y elementos activos.
   - `Copper (#fe8019)`: Botones secundarios de borde (`/demo`) y divisores acentuados.
   - `Olive (#665c54)`: Bordes, divisores sutiles y tarjetas de terminal.
-  - `Green (#b8bb26)`: Nodos y conexiones de grafos verificados.
+  - `Green (#b8bb26)`: Nodos y conexiones de grafos ilustrativos.
 - **Tipografía y formas:** Monospace (`Geist Mono, monospace`). Bordes estrictamente rectangulares (`rounded: 0px`). Sin sombras decorativas (`box-shadow: none`), logrando una estética Ratatui sobria y táctil.

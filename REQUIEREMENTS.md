@@ -67,7 +67,7 @@ Los requisitos funcionales describen las operaciones y servicios que deberá pro
 | RF-21 | El sistema podrá generar recomendaciones personalizadas utilizando las canciones y artistas favoritos del usuario. |
 | RF-22 | El sistema mostrará una lista ordenada de canciones recomendadas. |
 | RF-23 | El sistema permitirá guardar canciones recomendadas en favoritos o playlists. |
-| RF-24 | En etapas posteriores, el sistema incorporará recomendaciones basadas en grafos, filtrado colaborativo y características acústicas. |
+| RF-24 | El sistema incorporará progresivamente recomendaciones por tags, relaciones del grafo y escuchas de ListenBrainz, y combinará sus puntuaciones mediante pesos configurables. |
 
 ### 3.6. Evaluación de recomendaciones
 
@@ -86,9 +86,9 @@ Los requisitos no funcionales establecen las características de calidad, rendim
 | RNF-01 | Rendimiento | Las búsquedas musicales comunes deberán responder en menos de 3 segundos, bajo condiciones normales de operación y carga. |
 | RNF-02 | Rendimiento | El sistema deberá generar recomendaciones iniciales en menos de 5 segundos para consultas habituales sobre datos previamente procesados. |
 | RNF-03 | Usabilidad | La interfaz deberá ser intuitiva, mantener una navegación consistente y adaptarse a computadoras y dispositivos móviles. |
-| RNF-04 | Seguridad | Las contraseñas deberán almacenarse mediante algoritmos de hashing seguros, nunca en texto plano. |
+| RNF-04 | Seguridad | Clerk gestionará la autenticación y las credenciales; GraphU no almacenará contraseñas y sincronizará los datos necesarios del perfil. |
 | RNF-05 | Seguridad | Las operaciones sobre información privada deberán requerir autenticación y autorización. |
-| RNF-06 | Integridad | La base de datos deberá utilizar claves primarias, foráneas y restricciones para mantener la consistencia de la información. |
+| RNF-06 | Integridad | La base de la aplicación utilizará claves primarias, foráneas internas y restricciones. Las referencias a MusicBrainz se validarán por identificador, sin claves foráneas entre instancias. |
 | RNF-07 | Mantenibilidad | La aplicación deberá mantener separadas las responsabilidades del FrontEnd, BackEnd y base de datos. |
 | RNF-08 | Escalabilidad | La arquitectura deberá permitir incorporar nuevos algoritmos de recomendación sin modificar significativamente los módulos existentes. |
 | RNF-09 | Compatibilidad | La aplicación deberá funcionar en las versiones recientes de navegadores como Chrome, Firefox y Edge. |
@@ -115,37 +115,45 @@ El FrontEnd se desarrollará utilizando **Next.js con React y TypeScript**.
 | shadcn/ui | Componentes reutilizables de interfaz |
 | react-vis-graph-wrapper | Visualización interactiva de grafos musicales |
 
-### 5.2. BackEnd
+### 5.2. Servicios de servidor (D1-C)
 
-Se utilizará **Python con FastAPI** para implementar una API REST.
+**Next.js + Prisma** administrará la base de la aplicación:
 
-El BackEnd será responsable de:
+- Integración de Clerk, sesión, webhook y sincronización de perfiles.
+- Autorización y CRUD de usuarios, preferencias, favoritos y playlists.
+- Registro de solicitudes, semillas, resultados, eventos, feedback y evaluaciones.
+- Modelos y migraciones de la aplicación, con Prisma como único responsable de esas migraciones.
 
-- Autenticación y gestión de usuarios.
-- Implementación de operaciones CRUD.
-- Consultas a la base de datos MusicBrainz.
-- Administración de favoritos y playlists.
-- Ejecución de algoritmos de recomendación.
-- Registro de solicitudes, resultados e interacciones.
+**Python + FastAPI** implementará la API del catálogo y el motor musical:
 
-Para el procesamiento de recomendaciones se utilizarán bibliotecas como scikit-learn, NetworkX y NumPy.
+- Búsqueda y consulta de MusicBrainz con acceso de solo lectura.
+- Extracción de relaciones y subgrafos.
+- Preprocesamiento y ejecución de algoritmos de recomendación.
+- Integración posterior de ListenBrainz y combinación ponderada de señales.
+- Cálculo de métricas a partir de los datos necesarios suministrados por Next.js.
+
+Se utilizarán scikit-learn, NetworkX y NumPy. FastAPI no administrará el CRUD ni las migraciones de la base de la aplicación.
 
 ### 5.3. Comunicación entre componentes
 
 La comunicación entre el FrontEnd y el BackEnd se realizará mediante solicitudes HTTP a una API REST, utilizando principalmente JSON como formato de intercambio de información.
 
-El BackEnd será responsable de acceder a PostgreSQL, evitando exponer las credenciales de la base de datos al navegador.
+Para recomendaciones personalizadas, Next.js autenticará al usuario, resolverá sus semillas y favoritos con Prisma y enviará a FastAPI los identificadores y parámetros necesarios. FastAPI devolverá candidatos ordenados, puntuaciones y explicaciones; Next.js persistirá los resultados y sus interacciones.
+
+Las credenciales de PostgreSQL permanecerán en los servidores: Next.js accederá a la base de la aplicación y FastAPI al catálogo. Las operaciones privadas requerirán autorización y la comunicación entre servicios deberá estar autenticada, sin confiar en identificadores de usuario suministrados por el navegador.
 
 ## 6. Manejo de la base de datos
 
 Se utilizará **PostgreSQL** como sistema gestor de bases de datos relacional.
 
-La base de datos estará organizada en dos esquemas principales:
+Se mantendrán **dos instancias separadas** (D2):
 
-- `musicbrainz`: contendrá el catálogo musical importado desde MusicBrainz.
-- `app`: almacenará la información propia de la aplicación.
+- Base `graphu` de la aplicación (puerto local `5431`), administrada por Next.js + Prisma; el modelo objetivo se organiza en el esquema `app`.
+- Base `musicbrainz` del catálogo importado (puerto local `5433`), consultada por FastAPI en solo lectura.
 
-El esquema `app` contará inicialmente con **13 tablas**, distribuidas en cuatro módulos.
+Las referencias musicales usarán los UUID públicos de MusicBrainz (`gid`), sin joins ni claves foráneas entre servidores. Favoritos y pistas de playlists conservarán una caché mínima de título y artista para mostrar la biblioteca cuando el catálogo no esté disponible; esta caché no sustituye al identificador musical.
+
+El modelo objetivo de `app` comprende **13 tablas**, distribuidas en cuatro módulos. Esto describe el diseño previsto, no tablas ya implementadas. Las migraciones deberán preservar los usuarios existentes y la sincronización con Clerk.
 
 ### 6.1. Módulo de usuarios
 
@@ -219,14 +227,17 @@ Las tablas propias de GraphU se relacionarán con MusicBrainz mediante identific
 | Datos del servidor | TanStack Query |
 | Diseño visual | Tailwind CSS, shadcn/ui |
 | Visualización de grafos | react-vis-graph-wrapper |
-| BackEnd | Python, FastAPI |
+| Servicios de aplicación | Next.js, Prisma, Clerk |
+| Servicio musical | Python, FastAPI |
 | Algoritmos | scikit-learn, NetworkX, NumPy |
 | Base de datos | PostgreSQL, MusicBrainz |
-| Integraciones futuras | ListenBrainz, Essentia, pgvector |
+| Escuchas y señal colaborativa | ListenBrainz (etapa posterior) |
 
 ## 8. Alcance y etapas de desarrollo
 
-### Etapa 1. Funcionalidades principales
+El desarrollo será incremental: primero tags, después grafo y luego escuchas de ListenBrainz para construir una combinación ponderada. Se define desde ahora el modelo completo de 13 tablas; el plan de ejecución inmediato cubre **Etapas 1 y 2** (D4). Las etapas posteriores permanecen en la hoja de ruta.
+
+### Etapa 1. Funcionalidades principales y tags (D3)
 
 - Registro y gestión de usuarios.
 - Búsqueda de información musical.
@@ -234,31 +245,44 @@ Las tablas propias de GraphU se relacionarán con MusicBrainz mediante identific
 - Creación y administración de playlists.
 - Implementación de operaciones CRUD.
 - Recomendaciones mediante tags, TF-IDF y similitud coseno.
+- Búsqueda sobre todo el catálogo importado, tenga o no etiquetas, con índices de texto como `pg_trgm` y medición de rendimiento.
+- Medición de cobertura de etiquetas y géneros antes de construir el recomendador.
+- Preparación fuera de las peticiones de una matriz dispersa TF-IDF sobre grabaciones con etiquetas útiles; versionado y actualización del modelo cuando cambien los datos utilizados.
+- Si una semilla carece de información suficiente, comunicar la limitación sin inventar similitud. La herencia de etiquetas de artista o álbum es una alternativa pendiente de validar con la cobertura real.
+
+Una grabación sin tags seguirá siendo buscable y podrá guardarse. Su ausencia del modelo inicial no la excluye de los futuros recomendadores por grafo o escuchas. Precalcular no garantiza RNF-02 sin mediciones.
 
 ### Etapa 2. Grafos
 
 - Visualización de relaciones musicales mediante react-vis-graph-wrapper.
 - Implementación de Personalized PageRank con NetworkX.
 - Generación de recomendaciones basadas en relaciones musicales.
+- Extracción de vecindarios acotados para controlar tiempos y tamaño del grafo.
+- Explicaciones basadas en conexiones observadas y conservación de la puntuación y procedencia de cada señal.
 
-### Etapa 3. Recomendador híbrido
+### Etapa 3. Escuchas de ListenBrainz y recomendador híbrido
 
-- Integración de ListenBrainz.
-- Combinación de distintos algoritmos.
+- Comprobar disponibilidad, cobertura y correspondencia de las escuchas con identificadores MusicBrainz.
+- Incorporar patrones de escucha como señal colaborativa, sin exigir que todos los usuarios tengan cuenta o historial en ListenBrainz.
+- Reunir candidatos de tags, grafo y escuchas; una canción no necesitará aparecer en los tres algoritmos para ser candidata.
+- Normalizar las puntuaciones a una escala comparable antes de combinarlas.
+- Calcular `score = w_tags × s_tags + w_grafo × s_grafo + w_escuchas × s_escuchas`.
+- Utilizar pesos no negativos cuya suma sea 1 para la combinación completa. Los valores finales se determinarán mediante evaluación; no quedan fijados porcentajes en este documento.
+- Distinguir una señal ausente de una afinidad baja. Definir y evaluar la política para señales faltantes, incluida la posible renormalización de pesos, antes de activar el híbrido.
+- Registrar versión, pesos, disponibilidad y contribución de cada señal para reproducir y explicar resultados.
 - Incorporación de estrategias para diversificar recomendaciones.
 
-### Etapa 4. Similitud acústica
+### Etapa 4. Evaluación
 
-- Integración de características acústicas disponibles.
-- Análisis musical mediante Essentia.
-- Almacenamiento y consulta de embeddings con pgvector.
-
-### Etapa 5. Evaluación
-
-- Registro de interacciones de los usuarios.
+- Análisis de interacciones registradas desde las primeras recomendaciones.
 - Análisis de favoritos y rechazos.
-- Implementación de métricas de evaluación.
-- Comparación de algoritmos y mejoras progresivas.
+- Implementación de métricas de calidad, cobertura y diversidad con un protocolo documentado.
+- Comparación de algoritmos individuales y combinaciones de pesos.
+- Medición de rendimiento bajo condiciones y volúmenes de datos definidos.
+
+### Exclusiones
+
+Queda fuera de alcance el procesamiento de audio y la similitud acústica. No se contempla integrar Essentia, AcousticBrainz ni almacenar embeddings de audio con pgvector.
 
 ## 9. Conclusión
 

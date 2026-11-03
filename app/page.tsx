@@ -33,23 +33,15 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.heroVisual} aria-hidden="true">
-            <div className={styles.vinylWrapper}>
-              <Image
-                src="/ascii/recorrido-vinyl.png"
-                alt=""
-                width={1280}
-                height={1280}
-                sizes="(max-width: 600px) 220px, (max-width: 850px) 280px, 340px"
-                className={styles.vinylImage}
-                priority
-              />
-            </div>
-            <div className={styles.heroAside}>
-              <span>UN PUNTO DE PARTIDA</span>
-              <div className={styles.heroDiagram}><span>♪</span><i /><span>◉</span><i /><span>✳</span></div>
-              <p>Una canción puede ser<br />el inicio de un recorrido.</p>
-              <div className={styles.asideBottom}>01 <span>—</span> 02 <span>—</span> 03</div>
-            </div>
+            <Image
+              src="/illustrations/studio-headphones.svg"
+              alt=""
+              width={640}
+              height={540}
+              className={styles.headphonesImage}
+              unoptimized
+            />
+            <p className={styles.visualCaption}>De lo que escuchas<br /><span>a lo que está por descubrir.</span></p>
           </div>
         </section>
 
@@ -100,14 +92,14 @@ export default function Home() {
         </section>
 
         <section className={styles.ctaWrapper}>
-          <div className={styles.waveBanner} aria-hidden="true">
+          <div className={styles.connectionsBanner} aria-hidden="true">
             <Image
-              src="/ascii/recorrido-wave.png"
+              src="/illustrations/music-connections.svg"
               alt=""
-              width={2240}
-              height={600}
-              sizes="(max-width: 600px) 100vw, (max-width: 1200px) 90vw, 1200px"
-              className={styles.waveImage}
+              width={1040}
+              height={180}
+              className={styles.connectionsImage}
+              unoptimized
             />
           </div>
           <section className={styles.cta} aria-labelledby="cta-title">

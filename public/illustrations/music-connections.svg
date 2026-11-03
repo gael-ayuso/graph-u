@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 180" fill="none">
+  <defs>
+    <linearGradient id="sleeve" x1="0" y1="0" x2="90" y2="100" gradientUnits="userSpaceOnUse"><stop stop-color="#555b45"/><stop offset="1" stop-color="#30372a"/></linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="75" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#e2c770"/><stop offset="1" stop-color="#997332"/></linearGradient>
+    <g id="track"><rect x="4" y="6" width="88" height="88" rx="3" fill="#1d231b"/><rect width="88" height="88" rx="3" fill="url(#sleeve)" stroke="#8a8b69"/><path d="M8 9H79V79" stroke="#d4cca8" stroke-opacity=".2"/><circle cx="44" cy="44" r="25" fill="#232a20" stroke="#9f9b6a" stroke-opacity=".5"/><circle cx="44" cy="44" r="18" stroke="#8b9066" stroke-opacity=".5"/><circle cx="44" cy="44" r="8" fill="url(#edge)"/><circle cx="44" cy="44" r="2" fill="#282828"/></g>
+  </defs>
+  <path d="M20 90H157C215 90 216 58 272 58H413C464 58 465 120 521 120H675C733 120 734 74 790 74H1020" stroke="#665c54" stroke-width="2"/>
+  <path d="M272 58H413C464 58 465 120 521 120H675" stroke="#b8bb26" stroke-width="2" stroke-dasharray="3 7"/>
+  <circle cx="20" cy="90" r="5" fill="#282828" stroke="#b8bb26" stroke-width="2"/>
+  <circle cx="1020" cy="74" r="5" fill="#282828" stroke="#b8bb26" stroke-width="2"/>
+  <g transform="translate(144 40) rotate(-7 44 44)"><use href="#track"/></g>
+  <g transform="translate(478 48) rotate(6 44 44)"><use href="#track"/></g>
+  <g transform="translate(790 25) rotate(-5 44 44)"><use href="#track"/></g>
+  <circle cx="330" cy="58" r="7" fill="#282828" stroke="#fabd2f" stroke-width="2"/>
+  <circle cx="667" cy="120" r="7" fill="#282828" stroke="#fabd2f" stroke-width="2"/>
+  <path d="M330 34V20M323 27H337M667 148V162M660 155H674" stroke="#a69a6d" stroke-width="1.5"/>
+</svg>

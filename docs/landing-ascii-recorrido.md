@@ -195,9 +195,13 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
 
 ---
 
-## 6. Motivos Decorativos ASCII Magic MCP
+## 6. Ilustraciones vectoriales y ventanas pequeñas
 
-Para enriquecer la textura de terminal sin competir con el contenido ni sustituir las carátulas originales:
-1. **Vinilo geométrico (`public/ascii/recorrido-vinyl.png`):** Integrado en el lateral del Hero junto a la ficha de punto de partida, con dimensiones responsivas (220px móvil a 340px desktop), atributos `alt=""`, `aria-hidden="true"`, `pointer-events: none` y `priority` para evitar layout shifts.
-2. **Onda sonora / Conexiones (`public/ascii/recorrido-wave.png`):** Integrada como banner horizontal de transición en el cierre antes de la tarjeta CTA, con `alt=""`, `aria-hidden="true"` y preservando la legibilidad del bloque de acción.
-3. **Procedencia y Recipes:** Documentados en [`docs/ascii-magic-recorrido.json`](file:///C:/Users/goods/.traycer/worktrees/gael-ayuso__graph-u/design-landing-ascii-recorrido/docs/ascii-magic-recorrido.json) con estilo `characters`, plan gratuito, `scanLines` y `charBloom`.
+Los motivos rasterizados de ASCII Magic se sustituyeron, a petición del usuario, por SVG nativos para evitar el aspecto pixelado:
+
+1. **Auriculares de estudio (`public/illustrations/studio-headphones.svg`):** Ilustración vectorial original con detalles de almohadillas, metal y cable. Se integra sin marco en el hero; usa volumen y luces discretas dentro de la paleta cálida de GraphU.
+2. **Conexiones musicales (`public/illustrations/music-connections.svg`):** Piezas musicales enlazadas como transición hacia el cierre, en lugar del banner de onda sonora.
+3. **Adaptación:** A 1020 px el hero pasa a una columna y la ilustración queda junto a una leyenda compacta. A 760 px se apilan pasos y nodos, y la navegación se reorganiza. A 440 px las acciones se apilan y se reduce la decoración. Las imágenes conservan su proporción y no se recortan.
+4. **Accesibilidad:** Ambas ilustraciones son decorativas (`alt=""`, contenedor con `aria-hidden="true"`) y no interceptan interacción. Se sirven como SVG sin rasterización ni imágenes incrustadas. Las portadas originales y las rutas de navegación se conservan.
+
+Los PNG anteriores y sus recetas permanecen como material histórico en `public/ascii/`, `assets/ascii/` y [ascii-magic-recorrido.json](ascii-magic-recorrido.json); ya no se usan en la landing.

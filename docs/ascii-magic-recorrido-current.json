@@ -1,36 +1,35 @@
 {
   "renderer": "ASCII Magic MCP / stylize_image",
-  "style": "duotone",
+  "style": "asciiStudio",
   "plan": "pro",
   "enhance": true,
-  "postEffects": [
-    "levels"
-  ],
   "disabledPostEffects": [
-    "filmGrain"
+    "charBloom",
+    "scanLines"
   ],
-  "sourceArtwork": "Original GraphU vector artwork rasterized at high resolution for the hosted ASCII Magic renderer.",
+  "presentation": "Character-based render, tinted warm using CSS grayscale, brightness and sepia; no blur or smoothing effects.",
+  "sourceArtwork": "Original musical artwork with brighter object surfaces for visible ASCII characters against a black background.",
   "generatedAt": "2026-11-02",
   "assets": [
     {
       "name": "headphones",
-      "renderUrl": "https://www.ascii-magic.com/am-renders/c2134537e0b29573a577d67d2c3a558e.png",
-      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiZHVvdG9uZSIsImJyaWdodG5lc3MiOjM5LCJjb250cmFzdCI6MTI1LCJsZXZlbHNJbkJsYWNrIjoxNiwibGV2ZWxzSW5XaGl0ZSI6MjIwLCJsZXZlbHNFbmFibGVkIjp0cnVlLCJvdmVybGF5Q29sb3IiOiIjZmZmZmZmIiwicGZ4Ijp7ImZpbG1HcmFpbiI6eyJpbnRlbnNpdHkiOjE4fX19",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/b13fd2615c109eb84cab6546ca26eb53.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiYXNjaWlTdHVkaW8iLCJmb250U2l6ZSI6MTgsImJnTW9kZSI6InNvbGlkIiwiYnJpZ2h0bmVzcyI6MjAsImNvbnRyYXN0IjoxMjUsIm92ZXJsYXlDb2xvciI6IiNmZmZmZmYiLCJwZngiOnsiY2hhckJsb29tIjp7ImludGVuc2l0eSI6NDh9fX0",
+      "fontSize": 18,
       "width": 2560,
       "height": 2160,
-      "source": "assets/ascii/recorrido-headphones-source.png",
-      "originalVector": "public/illustrations/studio-headphones.svg",
-      "output": "public/ascii/recorrido-headphones-magic.png"
+      "source": "assets/ascii/recorrido-headphones-characters-source.png",
+      "output": "public/ascii/recorrido-headphones-ascii.png"
     },
     {
       "name": "connections",
-      "renderUrl": "https://www.ascii-magic.com/am-renders/939bba34555c4135b541bc772a8c0c3a.png",
-      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiZHVvdG9uZSIsImJyaWdodG5lc3MiOjQwLCJjb250cmFzdCI6MTI1LCJsZXZlbHNJbkJsYWNrIjoxNiwibGV2ZWxzSW5XaGl0ZSI6MjA3LCJsZXZlbHNFbmFibGVkIjp0cnVlLCJvdmVybGF5Q29sb3IiOiIjZmZmZmZmIiwicGZ4Ijp7ImZpbG1HcmFpbiI6eyJpbnRlbnNpdHkiOjE4fX19",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/5246e729d91ca6b72dfc6bcd5b227154.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiYXNjaWlTdHVkaW8iLCJmb250U2l6ZSI6MTYsImJnTW9kZSI6InNvbGlkIiwiYnJpZ2h0bmVzcyI6MjAsImNvbnRyYXN0IjoxMjUsImxldmVsc0luV2hpdGUiOjE0OSwibGV2ZWxzRW5hYmxlZCI6dHJ1ZSwib3ZlcmxheUNvbG9yIjoiI2ZmZmZmZiIsInBmeCI6eyJjaGFyQmxvb20iOnsiaW50ZW5zaXR5Ijo0OH19fQ",
+      "fontSize": 16,
       "width": 2560,
       "height": 443,
-      "source": "assets/ascii/recorrido-connections-source.png",
-      "originalVector": "public/illustrations/music-connections.svg",
-      "output": "public/ascii/recorrido-connections-magic.png"
+      "source": "assets/ascii/recorrido-connections-characters-source.png",
+      "output": "public/ascii/recorrido-connections-ascii.png"
     }
   ]
 }

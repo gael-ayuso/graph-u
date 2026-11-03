@@ -34,7 +34,7 @@ export default function Home() {
           </div>
           <div className={styles.heroVisual} aria-hidden="true">
             <Image
-              src="/ascii/recorrido-headphones-magic.png"
+              src="/ascii/recorrido-headphones-ascii.png"
               alt=""
               width={2560}
               height={2160}
@@ -94,7 +94,7 @@ export default function Home() {
         <section className={styles.ctaWrapper}>
           <div className={styles.connectionsBanner} aria-hidden="true">
             <Image
-              src="/ascii/recorrido-connections-magic.png"
+              src="/ascii/recorrido-connections-ascii.png"
               alt=""
               width={2560}
               height={443}

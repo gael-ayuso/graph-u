@@ -34,10 +34,10 @@ export default function Home() {
           </div>
           <div className={styles.heroVisual} aria-hidden="true">
             <Image
-              src="/illustrations/studio-headphones.svg"
+              src="/ascii/recorrido-headphones-magic.png"
               alt=""
-              width={640}
-              height={540}
+              width={2560}
+              height={2160}
               className={styles.headphonesImage}
               unoptimized
             />
@@ -94,10 +94,10 @@ export default function Home() {
         <section className={styles.ctaWrapper}>
           <div className={styles.connectionsBanner} aria-hidden="true">
             <Image
-              src="/illustrations/music-connections.svg"
+              src="/ascii/recorrido-connections-magic.png"
               alt=""
-              width={1040}
-              height={180}
+              width={2560}
+              height={443}
               className={styles.connectionsImage}
               unoptimized
             />

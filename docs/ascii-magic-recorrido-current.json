@@ -1,0 +1,36 @@
+{
+  "renderer": "ASCII Magic MCP / stylize_image",
+  "style": "duotone",
+  "plan": "pro",
+  "enhance": true,
+  "postEffects": [
+    "levels"
+  ],
+  "disabledPostEffects": [
+    "filmGrain"
+  ],
+  "sourceArtwork": "Original GraphU vector artwork rasterized at high resolution for the hosted ASCII Magic renderer.",
+  "generatedAt": "2026-11-02",
+  "assets": [
+    {
+      "name": "headphones",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/c2134537e0b29573a577d67d2c3a558e.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiZHVvdG9uZSIsImJyaWdodG5lc3MiOjM5LCJjb250cmFzdCI6MTI1LCJsZXZlbHNJbkJsYWNrIjoxNiwibGV2ZWxzSW5XaGl0ZSI6MjIwLCJsZXZlbHNFbmFibGVkIjp0cnVlLCJvdmVybGF5Q29sb3IiOiIjZmZmZmZmIiwicGZ4Ijp7ImZpbG1HcmFpbiI6eyJpbnRlbnNpdHkiOjE4fX19",
+      "width": 2560,
+      "height": 2160,
+      "source": "assets/ascii/recorrido-headphones-source.png",
+      "originalVector": "public/illustrations/studio-headphones.svg",
+      "output": "public/ascii/recorrido-headphones-magic.png"
+    },
+    {
+      "name": "connections",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/939bba34555c4135b541bc772a8c0c3a.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJyZW5kZXJNb2RlIjoiZHVvdG9uZSIsImJyaWdodG5lc3MiOjQwLCJjb250cmFzdCI6MTI1LCJsZXZlbHNJbkJsYWNrIjoxNiwibGV2ZWxzSW5XaGl0ZSI6MjA3LCJsZXZlbHNFbmFibGVkIjp0cnVlLCJvdmVybGF5Q29sb3IiOiIjZmZmZmZmIiwicGZ4Ijp7ImZpbG1HcmFpbiI6eyJpbnRlbnNpdHkiOjE4fX19",
+      "width": 2560,
+      "height": 443,
+      "source": "assets/ascii/recorrido-connections-source.png",
+      "originalVector": "public/illustrations/music-connections.svg",
+      "output": "public/ascii/recorrido-connections-magic.png"
+    }
+  ]
+}

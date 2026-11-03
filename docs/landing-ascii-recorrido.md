@@ -195,13 +195,14 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
 
 ---
 
-## 6. Ilustraciones vectoriales y ventanas pequeñas
+## 6. Recursos de ASCII Magic y ventanas pequeñas
 
-Los motivos rasterizados de ASCII Magic se sustituyeron, a petición del usuario, por SVG nativos para evitar el aspecto pixelado:
+Las decoraciones actuales se generaron con el MCP de ASCII Magic, usando su estilo Pro **Duotone**. Las ilustraciones SVG propias sirven como fuente del render; la landing muestra los PNG devueltos por el motor:
 
-1. **Auriculares de estudio (`public/illustrations/studio-headphones.svg`):** Ilustración vectorial original con detalles de almohadillas, metal y cable. Se integra sin marco en el hero; usa volumen y luces discretas dentro de la paleta cálida de GraphU.
-2. **Conexiones musicales (`public/illustrations/music-connections.svg`):** Piezas musicales enlazadas como transición hacia el cierre, en lugar del banner de onda sonora.
+1. **Auriculares de estudio (`public/ascii/recorrido-headphones-magic.png`, 2560 × 2160):** Acabado duotono cálido generado por ASCII Magic a partir de los auriculares vectoriales, conservando los detalles de almohadillas, metal y cable.
+2. **Conexiones musicales (`public/ascii/recorrido-connections-magic.png`, 2560 × 443):** Piezas musicales enlazadas con el mismo acabado para la transición hacia el cierre.
 3. **Adaptación:** A 1020 px el hero pasa a una columna y la ilustración queda junto a una leyenda compacta. A 760 px se apilan pasos y nodos, y la navegación se reorganiza. A 440 px las acciones se apilan y se reduce la decoración. Las imágenes conservan su proporción y no se recortan.
-4. **Accesibilidad:** Ambas ilustraciones son decorativas (`alt=""`, contenedor con `aria-hidden="true"`) y no interceptan interacción. Se sirven como SVG sin rasterización ni imágenes incrustadas. Las portadas originales y las rutas de navegación se conservan.
+4. **Accesibilidad:** Ambas imágenes son decorativas (`alt=""`, contenedor con `aria-hidden="true"`) y no interceptan interacción. Las portadas originales y las rutas de navegación se conservan.
+5. **Procedencia reproducible:** Los renders, dimensiones, fuentes y recetas se registran en [ascii-magic-recorrido-current.json](ascii-magic-recorrido-current.json). Los archivos se sirven localmente; la landing no depende de los enlaces temporales del motor.
 
 Los PNG anteriores y sus recetas permanecen como material histórico en `public/ascii/`, `assets/ascii/` y [ascii-magic-recorrido.json](ascii-magic-recorrido.json); ya no se usan en la landing.

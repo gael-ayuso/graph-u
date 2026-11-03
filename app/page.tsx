@@ -32,16 +32,33 @@ export default function Home() {
               <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo de búsqueda <span aria-hidden="true">→</span></Link>
             </div>
           </div>
-          <div className={styles.heroVisual} aria-hidden="true">
-            <Image
-              src="/ascii/recorrido-headphones-ascii.png"
-              alt=""
-              width={2560}
-              height={2160}
-              className={styles.headphonesImage}
-              unoptimized
+          <div className={styles.heroStage}>
+            <input
+              type="checkbox"
+              id="pause-hero-motion"
+              className={styles.motionToggle}
             />
-            <p className={styles.visualCaption}>De lo que escuchas<br /><span>a lo que está por descubrir.</span></p>
+            <div className={styles.heroVisual} aria-hidden="true">
+              <div className={styles.headphonesCanvas}>
+                <Image
+                  src="/ascii/recorrido-headphones-ascii.png"
+                  alt=""
+                  width={2560}
+                  height={2160}
+                  className={styles.headphonesImage}
+                  unoptimized
+                />
+              </div>
+              <p className={styles.visualCaption}>De lo que escuchas<br /><span>a lo que está por descubrir.</span></p>
+            </div>
+            <label
+              htmlFor="pause-hero-motion"
+              className={styles.motionButton}
+              aria-label="Pausar o reanudar animación de auriculares"
+            >
+              <span className={styles.pauseState}>[ II ] Pausar</span>
+              <span className={styles.playState}>[ ▶ ] Reanudar</span>
+            </label>
           </div>
         </section>
 

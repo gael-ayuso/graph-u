@@ -22,10 +22,42 @@
 .secondary { border-color: var(--copper); }
 .secondary:hover { color: var(--forest); background: var(--clay); border-color: var(--clay); }
 
-.heroVisual { display: flex; min-width: 0; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; user-select: none; }
+/* Hero Stage con soporte para pausa accesible */
+.heroStage { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 12px; }
+.heroVisual { display: flex; min-width: 0; width: 100%; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; user-select: none; }
+.headphonesCanvas { display: flex; justify-content: center; align-items: center; width: 100%; will-change: transform; animation: gentleSway 7.5s ease-in-out infinite; transform-origin: center center; }
 .headphonesImage { display: block; width: 100%; max-width: 400px; height: auto; object-fit: contain; filter: grayscale(1) brightness(2.6) sepia(1) saturate(2); mix-blend-mode: lighten; }
 .visualCaption { margin: 0; color: var(--cream); font-size: 12px; line-height: 1.65; text-align: center; }
 .visualCaption span { color: #bdae93; }
+
+/* Control interactivo accesible para pausar/reanudar ciclo continuo */
+.motionToggle { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.motionButton { display: inline-flex; align-items: center; justify-content: center; min-height: 32px; padding: 4px 10px; border: 1px solid var(--olive); background: #32302f; color: #bdae93; font-size: 11px; font-family: inherit; letter-spacing: .04em; cursor: pointer; user-select: none; transition: color 140ms ease-out, border-color 140ms ease-out, background-color 140ms ease-out; }
+.motionButton:hover { color: var(--clay); border-color: var(--clay); }
+.motionToggle:focus-visible + .heroVisual + .motionButton { outline: 2px solid var(--clay); outline-offset: 2px; }
+
+.playState { display: none; }
+.pauseState { display: inline; }
+
+.motionToggle:checked + .heroVisual .headphonesCanvas { animation-play-state: paused; }
+.motionToggle:checked ~ .motionButton .pauseState { display: none; }
+.motionToggle:checked ~ .motionButton .playState { display: inline; }
+.motionToggle:checked ~ .motionButton { border-color: var(--copper); color: var(--clay); }
+
+/* Animación sutil: pequeña oscilación angular (máx ±2.8deg) con leve flotación vertical (máx -6px) */
+@keyframes gentleSway {
+  0% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-4px) rotate(2deg); }
+  50% { transform: translateY(-6px) rotate(0deg); }
+  75% { transform: translateY(-3px) rotate(-2deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headphonesCanvas { animation: none !important; transform: none !important; }
+  .motionButton { display: none; }
+}
+
 .record span, .node span { color: #bdae93; font-size: 10px; letter-spacing: .06em; }
 
 .journey { padding: 82px 0; }
@@ -90,8 +122,10 @@
 
 @media (max-width: 1020px) {
   .hero { grid-template-columns: 1fr; }
+  .heroStage { align-items: flex-start; }
   .heroVisual { flex-direction: row; justify-content: flex-start; gap: 24px; }
-  .headphonesImage { width: min(32%, 200px); }
+  .headphonesCanvas { width: min(32%, 200px); }
+  .headphonesImage { max-width: 200px; }
   .visualCaption { text-align: left; }
   .steps li { padding: 20px; }
   .startBody, .collectionBody { grid-template-columns: 1fr; gap: 25px; }
@@ -122,7 +156,7 @@
 
 @media (max-width: 440px) {
   .heroVisual { gap: 12px; }
-  .headphonesImage { width: 42%; }
+  .headphonesCanvas { width: 42%; }
   .visualCaption { font-size: 11px; }
   .hero .intro { margin: 20px 0 24px; }
   .actions { flex-direction: column; align-items: stretch; }
@@ -131,6 +165,7 @@
   .sectionHeading h2, .cta h2 { font-size: 32px; }
   .map figcaption { flex-wrap: wrap; gap: 6px; }
   .connectionsBanner { padding: 4px 0; }
+  .motionButton { min-height: 36px; padding: 6px 12px; }
 }
 
 @media (max-height: 720px) and (min-width: 1021px) {

@@ -1,6 +1,7 @@
 """
 Procedural 3D SDF Raymarcher for Studio Headphones (360-degree vertical-axis turntable).
 Offline pure-Python (NumPy + Pillow + FFmpeg) volumetric 3D renderer.
+Clean cordless/mic-free studio monitor headphones: zero microphone, zero boom, zero external cable or plug.
 No Three.js, no 2D image warping: genuine 3D CSG solid geometry with perspective camera,
 true 3D occlusion, surface normals, raymarched ambient occlusion, soft shadows, and studio lighting.
 """
@@ -24,59 +25,14 @@ MAT_HOUSING = 1        # Warm olive-taupe studio shell (midtone)
 MAT_HOUSING_LIGHT = 2  # Bright warm cream-beige baffle / trim
 MAT_PAD = 3            # Matte dark-charcoal plush earpad & headband leather
 MAT_METAL = 4          # Brushed cream-silver steel headband rails & wishbone yoke
-MAT_GOLD = 5           # Gleaming Gruvbox amber-gold rings, pivots & TRS plug
+MAT_GOLD = 5           # Gleaming Gruvbox amber-gold rings, crowns & pivots
 MAT_GRILLE = 6         # Dark recessed studio acoustic grille with raised louvers
-MAT_CABLE = 7          # Braided warm-gold studio audio cord
-
-
-def _precompute_cable_segments() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Build 3D cubic Bezier curve segments for the left-earcup studio cable."""
-    p0 = np.array([-0.635, -0.715, -0.020], dtype=np.float32)
-    p1 = np.array([-0.625, -0.945, 0.085], dtype=np.float32)
-    p2 = np.array([-0.340, -0.955, 0.235], dtype=np.float32)
-    p3 = np.array([-0.145, -0.875, 0.205], dtype=np.float32)
-
-    n_seg = 12
-    ts = np.linspace(0.0, 1.0, n_seg + 1, dtype=np.float32)[:, None]
-    pts = (
-        ((1.0 - ts) ** 3) * p0
-        + 3.0 * ((1.0 - ts) ** 2) * ts * p1
-        + 3.0 * (1.0 - ts) * (ts ** 2) * p2
-        + (ts ** 3) * p3
-    )
-    a = pts[:-1]
-    b = pts[1:]
-    ba = b - a
-    baba = np.sum(ba * ba, axis=-1)
-    return a, ba, baba
-
-
-CABLE_A, CABLE_BA, CABLE_BABA = _precompute_cable_segments()
-
-PLUG_BARREL_A = np.array([-0.150, -0.878, 0.203], dtype=np.float32)
-PLUG_BARREL_B = np.array([-0.025, -0.822, 0.258], dtype=np.float32)
-PLUG_TIP_A = np.array([-0.025, -0.822, 0.258], dtype=np.float32)
-PLUG_TIP_B = np.array([0.078, -0.776, 0.304], dtype=np.float32)
-
-
-def sd_capsule(px: np.ndarray, py: np.ndarray, pz: np.ndarray, a: np.ndarray, b: np.ndarray, r: float) -> np.ndarray:
-    pax = px - a[0]
-    pay = py - a[1]
-    paz = pz - a[2]
-    bax = float(b[0] - a[0])
-    bay = float(b[1] - a[1])
-    baz = float(b[2] - a[2])
-    baba = bax * bax + bay * bay + baz * baz
-    h = np.clip((pax * bax + pay * bay + paz * baz) / baba, 0.0, 1.0)
-    dx = pax - bax * h
-    dy = pay - bay * h
-    dz = paz - baz * h
-    return np.sqrt(dx * dx + dy * dy + dz * dz) - r
 
 
 def evaluate_sdf(px: np.ndarray, py: np.ndarray, pz: np.ndarray, return_mat: bool = False):
     """
-    Evaluate 3D Signed Distance Field of the studio monitor headphones in object space.
+    Evaluate 3D Signed Distance Field of the clean studio monitor headphones in object space
+    (strictly without microphone, boom arm, cable, strain-relief boot, or external connector).
     """
     sx = np.abs(px)
 
@@ -230,65 +186,23 @@ def evaluate_sdf(px: np.ndarray, py: np.ndarray, pz: np.ndarray, return_mat: boo
     d_medallion = np.sqrt(q_md_r * q_md_r + q_md_x * q_md_x) - 0.007
     d_medallion_ring = np.sqrt((r_circ - 0.048) ** 2 + (ex - 0.186) ** 2) - 0.008
 
-    # ------------------------------------------------------------------
-    # 3. ASYMMETRIC LEFT/RIGHT STUDIO HARDWARE
-    # ------------------------------------------------------------------
-    boot_a = np.array([-0.625, -0.635, -0.025], dtype=np.float32)
-    boot_b = np.array([-0.635, -0.725, -0.020], dtype=np.float32)
-    d_boot = sd_capsule(px, py, pz, boot_a, boot_b, 0.028)
-
-    pax = px[..., None] - CABLE_A[:, 0]
-    pay = py[..., None] - CABLE_A[:, 1]
-    paz = pz[..., None] - CABLE_A[:, 2]
-    h_cab = np.clip(
-        (pax * CABLE_BA[:, 0] + pay * CABLE_BA[:, 1] + paz * CABLE_BA[:, 2]) / CABLE_BABA,
-        0.0,
-        1.0,
-    )
-    cdx = pax - CABLE_BA[:, 0] * h_cab
-    cdy = pay - CABLE_BA[:, 1] * h_cab
-    cdz = paz - CABLE_BA[:, 2] * h_cab
-    d_cable = np.min(np.sqrt(cdx * cdx + cdy * cdy + cdz * cdz), axis=-1) - 0.023
-
-    d_plug_barrel = sd_capsule(px, py, pz, PLUG_BARREL_A, PLUG_BARREL_B, 0.034)
-    d_plug_collar = sd_capsule(
-        px,
-        py,
-        pz,
-        np.array([-0.048, -0.832, 0.248], dtype=np.float32),
-        np.array([-0.020, -0.820, 0.260], dtype=np.float32),
-        0.038,
-    )
-    d_plug_tip = sd_capsule(px, py, pz, PLUG_TIP_A, PLUG_TIP_B, 0.016)
-
-    # Right earcup rear metallic studio plate badge
-    d_right_badge = sd_capsule(
-        px,
-        py,
-        pz,
-        np.array([0.785, -0.545, -0.185], dtype=np.float32),
-        np.array([0.772, -0.615, -0.168], dtype=np.float32),
-        0.018,
-    )
-
-    # Combine material groups
+    # Combine material groups (clean cordless studio chassis: zero cable, plug, boot, or mic boom)
     d_mat_housing = d_shell
-    d_mat_light = np.minimum(np.minimum(d_flange, d_clamp), np.minimum(d_baffle, np.minimum(d_medallion, d_plug_barrel)))
+    d_mat_light = np.minimum(np.minimum(d_flange, d_clamp), np.minimum(d_baffle, d_medallion))
     d_mat_pad = np.minimum(d_earpad, d_headband_pad)
-    d_mat_metal = np.minimum(np.minimum(np.minimum(d_hb_rails, d_hb_core), d_yoke), np.minimum(d_slider_rod, d_boot))
+    d_mat_metal = np.minimum(np.minimum(d_hb_rails, d_hb_core), np.minimum(d_yoke, d_slider_rod))
     d_mat_gold = np.minimum(
         np.minimum(d_outer_gold_ring, d_pivots),
         np.minimum(
             np.minimum(d_inner_gold, d_hb_piping),
-            np.minimum(np.minimum(d_clamp_gold, d_medallion_ring), np.minimum(d_plug_collar, np.minimum(d_plug_tip, d_right_badge))),
+            np.minimum(d_clamp_gold, d_medallion_ring),
         ),
     )
     d_mat_grille = d_grille
-    d_mat_cable = d_cable
 
     d_total = np.minimum(
         np.minimum(np.minimum(d_mat_housing, d_mat_light), np.minimum(d_mat_pad, d_mat_metal)),
-        np.minimum(np.minimum(d_mat_gold, d_mat_grille), d_mat_cable),
+        np.minimum(d_mat_gold, d_mat_grille),
     )
 
     if not return_mat:
@@ -303,7 +217,6 @@ def evaluate_sdf(px: np.ndarray, py: np.ndarray, pz: np.ndarray, return_mat: boo
         (MAT_METAL, d_mat_metal),
         (MAT_GOLD, d_mat_gold),
         (MAT_GRILLE, d_mat_grille),
-        (MAT_CABLE, d_mat_cable),
     ):
         mask = d_m < best
         mat = np.where(mask, m_id, mat)
@@ -318,7 +231,7 @@ def render_frame_array(angle_rad: float, size: int = 512, ssaa: int = 2) -> tupl
     """
     res = size * ssaa
 
-    # Fixed perspective studio camera (closer framing -> ~84% canvas fill)
+    # Fixed perspective studio camera (identical framing to prior delivery)
     cam_pos = np.array([0.0, 0.04, 3.18], dtype=np.float32)
     target = np.array([0.0, -0.085, 0.0], dtype=np.float32)
     fov_scale = 0.352
@@ -353,8 +266,8 @@ def render_frame_array(angle_rad: float, size: int = 512, ssaa: int = 2) -> tupl
     rdy_flat = rdy.ravel()
     rdz_flat = (-rdx * s_rot + rdz * c_rot).ravel()
 
-    # Exact Object-Space Bounding Box (OBB) slab intersection: culls ~70% of empty rays!
-    bmin = np.array([-0.98, -1.02, -0.44], dtype=np.float32)
+    # Exact Object-Space Bounding Box (OBB) slab intersection (tight lower bound with no hanging appendages)
+    bmin = np.array([-0.98, -0.82, -0.44], dtype=np.float32)
     bmax = np.array([0.98, 0.88, 0.44], dtype=np.float32)
 
     inv_dx = np.where(np.abs(rdx_flat) > 1e-7, 1.0 / rdx_flat, np.copysign(1e7, rdx_flat))
@@ -486,7 +399,7 @@ def render_frame_array(angle_rad: float, size: int = 512, ssaa: int = 2) -> tupl
         rough[m] = 0.22
         spec_str[m] = 0.85
 
-        # MAT_GOLD: Warm Gruvbox yellow-amber-gold studio rings, pivots & TRS tip
+        # MAT_GOLD: Warm Gruvbox yellow-amber-gold studio rings, crowns & pivots
         m = mat_id == MAT_GOLD
         albedo[m] = (0.98, 0.77, 0.30)
         rough[m] = 0.18
@@ -497,12 +410,6 @@ def render_frame_array(angle_rad: float, size: int = 512, ssaa: int = 2) -> tupl
         albedo[m] = (0.23, 0.24, 0.20)
         rough[m] = 0.42
         spec_str[m] = 0.45
-
-        # MAT_CABLE: Braided warm-gold studio audio cord
-        m = mat_id == MAT_CABLE
-        albedo[m] = (0.76, 0.64, 0.34)
-        rough[m] = 0.36
-        spec_str[m] = 0.50
 
         # 3-Point Studio Lighting in World Space
         k_dir = np.array([-0.52, 0.56, 0.64], dtype=np.float32)
@@ -558,6 +465,7 @@ def render_frame_array(angle_rad: float, size: int = 512, ssaa: int = 2) -> tupl
         telemetry["depth_max"] = round(float(th.max()), 3)
         telemetry["world_x_span"] = round(float(wx.max() - wx.min()), 3)
         telemetry["world_z_front"] = round(float(wz.max()), 3)
+        telemetry["obj_y_min"] = round(float(hy.min()), 3)
 
     img_hi = img_flat.reshape((res, res, 3))
     if ssaa > 1:
@@ -583,19 +491,15 @@ def run_test_views(out_dir: Path, size: int = 512, ssaa: int = 2, workers: int =
     test_dir.mkdir(parents=True, exist_ok=True)
     angles_deg = [0, 45, 90, 135, 180, 270]
     labels = [
-        "0 deg - FRONT",
+        "0 deg - FRONT (no mic/cable)",
         "45 deg - FRONT-LEFT 3/4",
-        "90 deg - LEFT PROFILE (w/ cable)",
+        "90 deg - LEFT PROFILE",
         "135 deg - REAR-LEFT 3/4",
         "180 deg - BACK (rear vents)",
-        "270 deg - RIGHT PROFILE (cordless)",
+        "270 deg - RIGHT PROFILE",
     ]
 
     t0 = time.perf_counter()
-    tasks = [
-        (deg, size, ssaa, str(test_dir / f"view-{deg:03d}.png"))
-        for deg in angles_deg
-    ]
     tiles = []
     stats = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=min(workers, len(angles_deg))) as pool:
@@ -677,7 +581,7 @@ def run_full_sequence(out_dir: Path, total_frames: int = 96, fps: int = 24, size
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Render 3D rotating studio headphones video source.")
+    parser = argparse.ArgumentParser(description="Render 3D rotating studio headphones video source (no mic / no cable).")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--mode", choices=["test", "full"], default="test")
     parser.add_argument("--frames", type=int, default=96)

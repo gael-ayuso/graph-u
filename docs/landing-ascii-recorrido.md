@@ -197,7 +197,7 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
 
 ## 6. Recursos de ASCII Magic y ventanas pequeñas
 
-1. **Auriculares con rotación 3D:** Antigravity generó un vídeo fuente mediante geometría volumétrica SDF, cámara fija y oclusión real, renderizado offline en Python/NumPy. Muestra frente, perfiles y espalda; no usa Three.js.
+1. **Auriculares sin micrófono, con rotación 3D:** Antigravity generó un vídeo fuente mediante geometría volumétrica SDF, cámara fija y oclusión real, renderizado offline en Python/NumPy. Muestra frente, perfiles y espalda; no usa Three.js. El modelo no tiene micrófono, brazo, cable ni conector externo.
 2. **Conversión ASCII:** Los 96 fotogramas se distribuyeron en cuatro hojas de 6 × 4 y se procesaron con el MCP de ASCII Magic, estilo Pro ASCII Studio, usando una única receta. Las hojas se separaron sin remuestreo y FFmpeg montó el vídeo final: 512 × 512, 24 fps, 4 segundos, H.264, sin audio y en bucle.
 3. **Reproducción:** El hero sirve public/ascii/recorrido-headphones-rotation.mp4, con póster local, reproducción inline y botón nativo Pausar/Reanudar de 44 px. La preferencia prefers-reduced-motion: reduce mantiene el primer fotograma y oculta el control. Si el vídeo falla, se muestra el póster.
 4. **Adaptación:** A 1020 px el hero pasa a una columna y el vídeo queda junto a una leyenda compacta. A 760 px se apilan pasos y nodos; a 440 px se apilan las acciones. El vídeo conserva su proporción cuadrada, sin recorte ni transformaciones CSS.

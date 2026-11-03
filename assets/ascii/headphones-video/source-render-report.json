@@ -6,33 +6,36 @@
   "duration_seconds": 4,
   "resolution": "512x512",
   "ssaa": 2,
-  "render_seconds": 327.15,
+  "render_seconds": 129.65,
   "key_angles": [
     {
       "angle_deg": 0,
-      "hit_fraction": 0.2258,
+      "hit_fraction": 0.216,
       "depth_min": 2.971,
       "depth_max": 3.418,
       "world_x_span": 1.859,
       "world_z_front": 0.332,
+      "obj_y_min": -0.739,
       "frame": 0
     },
     {
       "angle_deg": 90,
-      "hit_fraction": 0.182,
+      "hit_fraction": 0.1774,
       "depth_min": 2.265,
       "depth_max": 3.933,
       "world_x_span": 0.663,
       "world_z_front": 0.931,
+      "obj_y_min": -0.728,
       "frame": 24
     },
     {
       "angle_deg": 180,
-      "hit_fraction": 0.1883,
+      "hit_fraction": 0.18,
       "depth_min": 2.958,
-      "depth_max": 3.58,
+      "depth_max": 3.379,
       "world_x_span": 1.805,
       "world_z_front": 0.331,
+      "obj_y_min": -0.734,
       "frame": 48
     },
     {
@@ -42,15 +45,17 @@
       "depth_max": 3.933,
       "world_x_span": 0.663,
       "world_z_front": 0.931,
+      "obj_y_min": -0.728,
       "frame": 72
     },
     {
       "angle_deg": 356.25,
-      "hit_fraction": 0.2249,
+      "hit_fraction": 0.2156,
       "depth_min": 2.926,
       "depth_max": 3.443,
       "world_x_span": 1.855,
       "world_z_front": 0.382,
+      "obj_y_min": -0.738,
       "frame": 95
     }
   ]

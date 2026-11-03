@@ -7,7 +7,7 @@
   "sheets": [
     {
       "index": 0,
-      "url": "https://www.ascii-magic.com/am-renders/0e41c141d53bf82f8153e7f98d924d23.png",
+      "url": "https://www.ascii-magic.com/am-renders/134b6ea934c20a1074843af31e310d1c.png",
       "firstFrame": 0,
       "lastFrame": 23,
       "width": 3072,
@@ -15,7 +15,7 @@
     },
     {
       "index": 1,
-      "url": "https://www.ascii-magic.com/am-renders/32a1241756994aac1a789f83ed6bdff8.png",
+      "url": "https://www.ascii-magic.com/am-renders/7403c04b981ea9c091d8bf30c4ee1dc3.png",
       "firstFrame": 24,
       "lastFrame": 47,
       "width": 3072,
@@ -23,7 +23,7 @@
     },
     {
       "index": 2,
-      "url": "https://www.ascii-magic.com/am-renders/a786aacd61d1126f656c8e7b0124860b.png",
+      "url": "https://www.ascii-magic.com/am-renders/bb911a90e599d4672827000ca1a4f52f.png",
       "firstFrame": 48,
       "lastFrame": 71,
       "width": 3072,
@@ -31,7 +31,7 @@
     },
     {
       "index": 3,
-      "url": "https://www.ascii-magic.com/am-renders/b607ebdf75f7a36f55ec3554d0c91dca.png",
+      "url": "https://www.ascii-magic.com/am-renders/7d4ea18a16b170d2c643b29b0ab5691f.png",
       "firstFrame": 72,
       "lastFrame": 95,
       "width": 3072,
@@ -47,5 +47,6 @@
   "height": 512,
   "audio": false,
   "encoder": "libx264 -crf 16 -preset medium -pix_fmt yuv420p -movflags +faststart",
-  "note": "All sheets rendered with the identical recipe. Cropped into 512px frames without resampling. Original palette tinted warm by CSS."
+  "note": "All sheets rendered with the identical recipe. Cropped into 512px frames without resampling. Original palette tinted warm by CSS.",
+  "model": "Studio headphones without microphone, boom arm, external cable or connector. Appendage geometry removed before rendering all 96 frames."
 }

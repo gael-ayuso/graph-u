@@ -1,0 +1,33 @@
+{
+  "renderer": "ASCII Magic MCP / stylize_image",
+  "style": "characters",
+  "plan": "free",
+  "purpose": "Decorative musical motifs for the Recorrido landing; original album covers are unchanged.",
+  "sourceArtwork": "Original geometric compositions drawn specifically for GraphU, not derived from album artwork.",
+  "generatedAt": "2026-11-02",
+  "enhance": true,
+  "postEffects": [
+    "scanLines",
+    "charBloom"
+  ],
+  "assets": [
+    {
+      "name": "vinyl",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/b27f02c9e2b63bc068d6904b987c78f1.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJmb250U2l6ZSI6MTIsImJnQmx1ciI6MCwiY29udHJhc3QiOjEyNSwicGZ4Ijp7InNjYW5MaW5lcyI6eyJlbmFibGVkIjp0cnVlLCJpbnRlbnNpdHkiOjM0fSwiY2hhckJsb29tIjp7ImVuYWJsZWQiOnRydWV9fX0",
+      "width": 1280,
+      "height": 1280,
+      "source": "assets/ascii/recorrido-vinyl-source.png",
+      "output": "public/ascii/recorrido-vinyl.png"
+    },
+    {
+      "name": "wave",
+      "renderUrl": "https://www.ascii-magic.com/am-renders/5127d22c052fda8809fa9a32d899428d.png",
+      "recipe": "recipe:v1:eyJ2IjoxLCJmb250U2l6ZSI6MTAsImJnQmx1ciI6MCwiYnJpZ2h0bmVzcyI6MjksImNvbnRyYXN0IjoxMjUsInBmeCI6eyJzY2FuTGluZXMiOnsiZW5hYmxlZCI6dHJ1ZSwiaW50ZW5zaXR5IjozNH0sImNoYXJCbG9vbSI6eyJlbmFibGVkIjp0cnVlfX19",
+      "width": 2240,
+      "height": 600,
+      "source": "assets/ascii/recorrido-wave-source.png",
+      "output": "public/ascii/recorrido-wave.png"
+    }
+  ]
+}

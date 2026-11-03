@@ -32,11 +32,24 @@ export default function Home() {
               <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo de búsqueda <span aria-hidden="true">→</span></Link>
             </div>
           </div>
-          <div className={styles.heroAside} aria-hidden="true">
-            <span>UN PUNTO DE PARTIDA</span>
-            <div className={styles.heroDiagram}><span>♪</span><i /><span>◉</span><i /><span>✳</span></div>
-            <p>Una canción puede ser<br />el inicio de un recorrido.</p>
-            <div className={styles.asideBottom}>01 <span>—</span> 02 <span>—</span> 03</div>
+          <div className={styles.heroVisual} aria-hidden="true">
+            <div className={styles.vinylWrapper}>
+              <Image
+                src="/ascii/recorrido-vinyl.png"
+                alt=""
+                width={1280}
+                height={1280}
+                sizes="(max-width: 600px) 220px, (max-width: 850px) 280px, 340px"
+                className={styles.vinylImage}
+                priority
+              />
+            </div>
+            <div className={styles.heroAside}>
+              <span>UN PUNTO DE PARTIDA</span>
+              <div className={styles.heroDiagram}><span>♪</span><i /><span>◉</span><i /><span>✳</span></div>
+              <p>Una canción puede ser<br />el inicio de un recorrido.</p>
+              <div className={styles.asideBottom}>01 <span>—</span> 02 <span>—</span> 03</div>
+            </div>
           </div>
         </section>
 
@@ -86,7 +99,32 @@ export default function Home() {
           </div>
         </section>
 
-        <section className={styles.cta} aria-labelledby="cta-title"><div><p className={styles.eyebrow}>[ EL SIGUIENTE PASO ES TUYO ]</p><h2 id="cta-title">Empieza por<br />una canción.</h2><p>Prueba la búsqueda o crea tu cuenta para ser parte de GraphU.</p></div><div><div className={styles.actions}><Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>Crear cuenta <span aria-hidden="true">↗</span></Link><Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo <span aria-hidden="true">→</span></Link></div><p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p></div></section>
+        <section className={styles.ctaWrapper}>
+          <div className={styles.waveBanner} aria-hidden="true">
+            <Image
+              src="/ascii/recorrido-wave.png"
+              alt=""
+              width={2240}
+              height={600}
+              sizes="(max-width: 600px) 100vw, (max-width: 1200px) 90vw, 1200px"
+              className={styles.waveImage}
+            />
+          </div>
+          <section className={styles.cta} aria-labelledby="cta-title">
+            <div>
+              <p className={styles.eyebrow}>[ EL SIGUIENTE PASO ES TUYO ]</p>
+              <h2 id="cta-title">Empieza por<br />una canción.</h2>
+              <p>Prueba la búsqueda o crea tu cuenta para ser parte de GraphU.</p>
+            </div>
+            <div>
+              <div className={styles.actions}>
+                <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>Crear cuenta <span aria-hidden="true">↗</span></Link>
+                <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo <span aria-hidden="true">→</span></Link>
+              </div>
+              <p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>
+            </div>
+          </section>
+        </section>
       </main>
       <footer className={styles.footer}><Link href="/" className={styles.footerBrand}>GraphU<span>_</span></Link><span>Una canción lleva a otra.</span><a href="https://musicbrainz.org/" target="_blank" rel="noreferrer">Datos musicales: MusicBrainz <span className={styles.srOnly}>(abre en otra pestaña)</span>↗</a></footer>
     </div>

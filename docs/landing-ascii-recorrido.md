@@ -36,6 +36,7 @@ A diferencia de una herramienta analítica o un visor técnico, la **Landing Pag
 | **Cómo funciona / Recorrido** | `#como-funciona` / `#recorrido` | **Navegación interna**| Texto plano mono Cream (`#ebdbb2`). | Salto accesible a los bloques explicativos de la landing. |
 | **MusicBrainz** | `https://musicbrainz.org/` | **Atribución externa** | Enlace externo con `rel="noreferrer"`. | Fuente abierta de datos catalográficos. |
 | **Fuentes de carátulas** | `public/music/SOURCES.md` | **Documentación interna** | Enlace a registro de procedencia. | Cover Art Archive (imágenes originales sin modificar). |
+| **Motivos ASCII Magic** | `docs/ascii-magic-recorrido.json` | **Documentación interna** | Decoraciones generadas por MCP ASCII Magic. | Vinilo geométrico y onda sonora decorativa. |
 
 ---
 
@@ -191,3 +192,12 @@ El siguiente boceto representa la adaptación vertical para pantallas móviles e
   - `Olive (#665c54)`: Bordes, divisores sutiles y tarjetas de terminal.
   - `Green (#b8bb26)`: Nodos y conexiones de grafos ilustrativos.
 - **Tipografía y formas:** Monospace (`Geist Mono, monospace`). Bordes estrictamente rectangulares (`rounded: 0px`). Sin sombras decorativas (`box-shadow: none`), logrando una estética Ratatui sobria y táctil.
+
+---
+
+## 6. Motivos Decorativos ASCII Magic MCP
+
+Para enriquecer la textura de terminal sin competir con el contenido ni sustituir las carátulas originales:
+1. **Vinilo geométrico (`public/ascii/recorrido-vinyl.png`):** Integrado en el lateral del Hero junto a la ficha de punto de partida, con dimensiones responsivas (220px móvil a 340px desktop), atributos `alt=""`, `aria-hidden="true"`, `pointer-events: none` y `priority` para evitar layout shifts.
+2. **Onda sonora / Conexiones (`public/ascii/recorrido-wave.png`):** Integrada como banner horizontal de transición en el cierre antes de la tarjeta CTA, con `alt=""`, `aria-hidden="true"` y preservando la legibilidad del bloque de acción.
+3. **Procedencia y Recipes:** Documentados en [`docs/ascii-magic-recorrido.json`](file:///C:/Users/goods/.traycer/worktrees/gael-ayuso__graph-u/design-landing-ascii-recorrido/docs/ascii-magic-recorrido.json) con estilo `characters`, plan gratuito, `scanLines` y `charBloom`.

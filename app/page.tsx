@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Show, UserButton } from "@clerk/nextjs";
 import { Suspense } from "react";
 import styles from "./page.module.css";
+import HeadphonesVideo from "./headphones-video";
 
 export default function Home() {
   return (
@@ -32,17 +33,7 @@ export default function Home() {
               <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo de búsqueda <span aria-hidden="true">→</span></Link>
             </div>
           </div>
-          <div className={styles.heroVisual} aria-hidden="true">
-            <Image
-              src="/ascii/recorrido-headphones-ascii.png"
-              alt=""
-              width={2560}
-              height={2160}
-              className={styles.headphonesImage}
-              unoptimized
-            />
-            <p className={styles.visualCaption}>De lo que escuchas<br /><span>a lo que está por descubrir.</span></p>
-          </div>
+          <HeadphonesVideo />
         </section>
 
         <section className={styles.journey} id="recorrido" aria-labelledby="journey-title">

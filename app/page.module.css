@@ -22,10 +22,20 @@
 .secondary { border-color: var(--copper); }
 .secondary:hover { color: var(--forest); background: var(--clay); border-color: var(--clay); }
 
-.heroVisual { display: flex; min-width: 0; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; user-select: none; }
-.headphonesImage { display: block; width: 100%; max-width: 400px; height: auto; object-fit: contain; filter: grayscale(1) brightness(2.6) sepia(1) saturate(2); mix-blend-mode: lighten; }
+/* Pre-rendered ASCII video; no runtime 3D or CSS rotation. */
+.heroStage { display: flex; min-width: 0; flex-direction: column; align-items: center; gap: 12px; }
+.heroVisual { display: flex; min-width: 0; width: 100%; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; user-select: none; }
+.headphonesCanvas { display: flex; justify-content: center; align-items: center; width: 100%; mix-blend-mode: lighten; }
+.headphonesImage { display: block; width: 100%; max-width: 400px; height: auto; aspect-ratio: 1; object-fit: contain; filter: grayscale(1) brightness(2.6) sepia(1) saturate(2); }
 .visualCaption { margin: 0; color: var(--cream); font-size: 12px; line-height: 1.65; text-align: center; }
 .visualCaption span { color: #bdae93; }
+.motionButton { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 44px; padding: 6px 12px; border: 1px solid var(--olive); background: #32302f; color: #bdae93; font-size: 11px; font-family: inherit; cursor: pointer; transition: color 140ms ease-out, border-color 140ms ease-out; }
+.motionButton:hover { color: var(--clay); border-color: var(--clay); }
+.motionButton:focus-visible { outline: 2px solid var(--clay); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .motionButton { display: none; }
+}
+
 .record span, .node span { color: #bdae93; font-size: 10px; letter-spacing: .06em; }
 
 .journey { padding: 82px 0; }
@@ -90,8 +100,10 @@
 
 @media (max-width: 1020px) {
   .hero { grid-template-columns: 1fr; }
+  .heroStage { align-items: flex-start; }
   .heroVisual { flex-direction: row; justify-content: flex-start; gap: 24px; }
-  .headphonesImage { width: min(32%, 200px); }
+  .headphonesCanvas { width: min(32%, 200px); }
+  .headphonesImage { max-width: 200px; }
   .visualCaption { text-align: left; }
   .steps li { padding: 20px; }
   .startBody, .collectionBody { grid-template-columns: 1fr; gap: 25px; }
@@ -122,7 +134,7 @@
 
 @media (max-width: 440px) {
   .heroVisual { gap: 12px; }
-  .headphonesImage { width: 42%; }
+  .headphonesCanvas { width: 42%; }
   .visualCaption { font-size: 11px; }
   .hero .intro { margin: 20px 0 24px; }
   .actions { flex-direction: column; align-items: stretch; }

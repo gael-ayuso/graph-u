@@ -30,6 +30,19 @@ describe("GraphU backend client", () => {
     fetchMock.mockResolvedValueOnce(json({ detail: [{ msg: "x" }] }, 500));
     await expect(recommendSongs([seed])).rejects.toMatchObject({ status: 503 });
   });
+
+  it("handles non-JSON error responses from the backend gracefully with fallback message", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("<html>502 Bad Gateway</html>", { status: 502 }));
+    await expect(recommendSongs([seed])).rejects.toMatchObject({
+      status: 503,
+      message: "El backend de GraphU no pudo completar la solicitud.",
+    });
+    fetchMock.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    await expect(searchSongs("Reckoner", "")).rejects.toMatchObject({
+      status: 404,
+      message: "El backend de GraphU no pudo completar la solicitud.",
+    });
+  });
 });
 
 describe("recommendations endpoint", () => {
@@ -44,17 +57,50 @@ describe("recommendations endpoint", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed JSON bodies, missing seeds, and oversized excludeArtists", async () => {
+    const malformed = await POST(new Request("http://localhost/api/recommendations", { method: "POST", body: "{not-json" }));
+    expect(malformed.status).toBe(400);
+    expect((await post(null)).status).toBe(400);
+    expect((await post({})).status).toBe(400);
+    expect((await post({ seeds: [seed], excludeArtists: "not-an-array" })).status).toBe(400);
+    expect((await post({ seeds: [seed], excludeArtists: Array(201).fill(seed) })).status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts uppercase hex MBIDs and boundary lengths (10 seeds, 200 excludeArtists)", async () => {
+    fetchMock.mockResolvedValueOnce(json({ seedTags: [], recommendations: [], graph: { nodes: [], edges: [] } }));
+    const upperSeed = seed.toUpperCase();
+    const response = await post({ seeds: Array(10).fill(upperSeed), excludeArtists: Array(200).fill(upperSeed) });
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects 36-char strings of hyphens or bad UUID groups before calling FastAPI", async () => {
+    // route.ts usa /^[a-f0-9-]{36}$/i en lugar de formato UUID 8-4-4-4-12: deja pasar "---..." (36 guiones)
+    // y recién falla en FastAPI con 422 y detalle no string ("El backend de GraphU no pudo completar la solicitud.").
+    const badUuid = "-".repeat(36);
+    const response = await post({ seeds: [badUuid] });
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("forwards already shown artists so the backend can exclude them", async () => {
     fetchMock.mockResolvedValueOnce(json({ seedTags: [], recommendations: [], graph: { nodes: [], edges: [] } }));
     await post({ seeds: [seed], excludeArtists: [seed] });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ seeds: [seed], excludeArtists: [seed] });
   });
 
-  it("returns the backend recommendations", async () => {
+  it("propagates MusicBrainzError status/message and sets Cache-Control: no-store on success", async () => {
+    fetchMock.mockResolvedValueOnce(json({ detail: "No encontramos datos para recomendar." }, 422));
+    const errRes = await post({ seeds: [seed] });
+    expect(errRes.status).toBe(422);
+    expect(await errRes.json()).toEqual({ error: "No encontramos datos para recomendar." });
+
     const data = { seedTags: ["rock"], recommendations: [] };
     fetchMock.mockResolvedValueOnce(json(data));
     const response = await post({ seeds: [seed] });
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(await response.json()).toEqual(data);
   });
 });

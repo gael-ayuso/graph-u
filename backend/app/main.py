@@ -5,7 +5,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from . import musicbrainz as mb
-from .recommender import build_graph, hybrid, interleave, rank
+from .graph import build_graph
+from .recommender import cover, hybrid, interleave, rank
 
 app = FastAPI(title="GraphU API", version="0.1.0")
 
@@ -33,14 +34,21 @@ class RecommendationRequest(BaseModel):
     exclude_artists: list[UUID] = Field(default_factory=list, max_length=200, alias="excludeArtists")
 
 
-def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]]) -> list[dict]:
-    """Canciones similares (Last.fm) del artista (mejor primero) y, si no llegan a 2, las de álbum; sin títulos repetidos."""
-    songs = [song for _, song in sorted(hints.get(artist_id, []), key=lambda h: -h[0])]
-    if len(songs) < 2:
-        songs += mb._optional(lambda: mb.album_tracks(artist_id), [])
+def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]], skip_titles: set[str]) -> list[dict]:
+    """Canciones similares (Last.fm) del artista (mejor primero) y, si no llegan a 2, las de álbum.
+
+    Sin títulos repetidos ni versiones de tus propias canciones.
+    """
     unique = {}
-    for song in songs:
-        unique.setdefault(song["title"].casefold(), song)
+
+    def keep(songs):
+        for song in songs:
+            if song["title"].casefold() not in skip_titles:
+                unique.setdefault(song["title"].casefold(), song)
+
+    keep(song for _, song in sorted(hints.get(artist_id, []), key=lambda h: -h[0]))
+    if len(unique) < 2:  # se cuenta después de quitar repetidos
+        keep(mb._optional(lambda: mb.album_tracks(artist_id), []))
     return list(unique.values())
 
 
@@ -53,37 +61,57 @@ def recommend(body: RecommendationRequest):
         weights = Counter()
         for tags in seed_tags:
             weights.update(tags)
-        if not weights:
-            raise HTTPException(422, "Las canciones elegidas no tienen etiquetas en MusicBrainz. Prueba con otras.")
-        top_tags = tuple(tag for tag, _ in weights.most_common(3))
-        # 2. Candidatos de cuatro señales. Se excluyen los artistas de las semillas (para descubrir
+        # Las 3 etiquetas más comunes + la principal de cada semilla: así una canción de un género
+        # minoritario en la lista también trae candidatos de su estilo.
+        top_tags = tuple(dict.fromkeys([tag for tag, _ in weights.most_common(3)] + [max(tags, key=tags.get) for tags in seed_tags if tags]))
+        # 2. Candidatos de varias señales. Se excluyen los artistas de las semillas (para descubrir
         #    música nueva) y los ya mostrados.
         excluded = {artist for _, _, artist in seeds if artist} | {str(a) for a in body.exclude_artists}
-        by_tags = rank(seed_tags, mb.artists_by_tags(top_tags), exclude=excluded)
-        signals = {"songs": {}, "listeners": {}, "collab": {}}
+        by_tags = rank(seed_tags, mb.artists_by_tags(top_tags), exclude=excluded) if top_tags else []
+        signals = {"songs": {}, "listeners": {}, "collab": {}, "versions": {}}
         hints = {}  # artista → canciones similares de Last.fm (puntuación, canción)
         seed_ids = {song["id"] for song, _, _ in seeds}
         seed_titles = {song["title"].casefold() for song, _, _ in seeds}  # otras versiones de tus canciones
+
+        def add(name: str, seed_id: str, found: mb.Scored):
+            for candidate_id, (artist, score) in found.items():
+                if candidate_id in excluded:  # si no, la semilla parecería cubierta y se saltaría «versions»
+                    continue
+                _, best, origin = signals[name].get(candidate_id, (artist, 0.0, set()))
+                signals[name][candidate_id] = (artist, max(best, score), origin | {seed_id})
+
         for song, _, artist_id in seeds:
             for similar, score, similar_artist in mb.similar_songs(song):
                 if similar["id"] in seed_ids or similar["title"].casefold() in seed_titles:
                     continue
-                _, best, origin = signals["songs"].get(similar_artist, (None, 0.0, set()))
-                signals["songs"][similar_artist] = ({"id": similar_artist, "name": similar["artist"]}, max(best, score), origin | {song["id"]})
+                add("songs", song["id"], {similar_artist: ({"id": similar_artist, "name": similar["artist"]}, score)})
                 hints.setdefault(similar_artist, []).append((score, similar))
-            if not artist_id:
-                continue
-            for name, found in (("listeners", mb.similar_artists(song["artist"])), ("collab", mb.collaborators(artist_id))):
-                for candidate_id, (artist, score) in found.items():
-                    _, best, origin = signals[name].get(candidate_id, (artist, 0.0, set()))
-                    signals[name][candidate_id] = (artist, max(best, score), origin | {song["id"]})
+            if artist_id:
+                add("listeners", song["id"], mb.similar_artists(song["artist"]))
+                add("collab", song["id"], mb.collaborators(artist_id))
+        # Semillas sin ninguna señal: se buscan artistas que grabaron la misma canción.
+        covered = {seed_id for found in signals.values() for *_, origin in found.values() for seed_id in origin}
+        for song, _, _ in seeds:
+            if song["id"] not in covered:
+                add("versions", song["id"], mb.versions(song["title"]))
         artists = hybrid(by_tags, signals, exclude=excluded)
         # 3. Canciones de los artistas ganadores, intercaladas por artista: primero las canciones
         #    similares de Last.fm; si no hay 2, se completa con canciones de álbum.
-        #    Con 2 canciones por artista bastan limit/2 artistas (+1 por si alguno no tiene canciones).
-        artists = artists[: (body.limit + 1) // 2 + 1]
-        tracks = {artist["id"]: _tracks(artist["id"], hints) for artist, *_ in artists}
+        #    Con 2 canciones por artista bastan limit/2 artistas (+1 por si alguno no tiene canciones),
+        #    pero cada semilla tiene asegurado su mejor artista conectado.
+        tracks = {}
+
+        def playable(artist: dict) -> list[dict]:
+            if artist["id"] not in tracks:
+                tracks[artist["id"]] = _tracks(artist["id"], hints, seed_titles)
+            return tracks[artist["id"]]
+
+        artists = cover([(song, tags) for song, tags, _ in seeds], artists, (body.limit + 1) // 2 + 1, playable)
+        for artist, *_ in artists:
+            playable(artist)
         recommendations = interleave(artists, tracks, body.limit)
+        if not recommendations:
+            raise HTTPException(422, "No encontramos datos para recomendar a partir de estas canciones. Prueba con otras.")
         hinted = {song["id"] for found in hints.values() for _, song in found}
         for rec in recommendations:
             if rec["song"]["id"] not in hinted and "songs" in rec["signals"]:

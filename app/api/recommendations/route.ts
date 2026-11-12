@@ -1,6 +1,6 @@
 import { MusicBrainzError, recommendSongs } from "@/lib/musicbrainz";
 
-const MBID = /^[a-f0-9-]{36}$/i;
+const MBID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ids = (value: unknown, max: number): value is string[] =>
   Array.isArray(value) && value.length <= max && value.every((id) => typeof id === "string" && MBID.test(id));
 

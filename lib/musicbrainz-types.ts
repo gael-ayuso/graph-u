@@ -12,7 +12,7 @@ export type Recommendation = {
   score: number;
   sharedTags: string[];
   /** Otras señales: canción o artista similar en Last.fm, o colaboraciones. */
-  signals: ("songs" | "listeners" | "collab")[];
+  signals: ("songs" | "listeners" | "collab" | "versions")[];
   artistId: string;
 };
 
@@ -22,6 +22,7 @@ export type GraphNode = {
   label: string;
   detail?: string;
   score?: number;
+  degree?: number; // conexiones del nodo (NetworkX)
 };
 
 export type RecommendationGraph = {

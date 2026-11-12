@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.recommender import build_graph, hybrid, interleave, rank
+from app.recommender import cover, hybrid, interleave, rank
 
 
 def test_rank():
@@ -34,6 +34,32 @@ def test_hybrid():
     assert ranked[0][3] == {"listeners": {"s"}} and ranked[2][2] == []
 
 
+def test_cover():
+    seeds = [
+        ({"id": "s_pop"}, {"pop": 5}),
+        ({"id": "s_corrido"}, {"corrido": 5}),
+        ({"id": "s_jazz"}, {"jazz": 5}),
+    ]
+    artists = [
+        ({"id": "pop1"}, 0.9, ["pop"], {}),                     # conectado a s_pop por etiqueta
+        ({"id": "pop2"}, 0.8, ["pop"], {}),                     # relleno de alta puntuación
+        ({"id": "pop3"}, 0.7, ["pop"], {}),                     # fuera de cupo si slots=3
+        ({"id": "jazz_dead"}, 0.6, ["jazz"], {}),               # conectado a s_jazz pero sin canciones
+        ({"id": "jazz_ok"}, 0.5, ["jazz"], {}),                 # siguiente conectado a s_jazz, sí reproducible
+        ({"id": "corrido1"}, 0.1, [], {"versions": {"s_corrido"}}),  # al final del ranking, conectado por señal
+    ]
+    tracks = {a["id"]: [{"id": f"t_{a['id']}"}] for a, *_ in artists if a["id"] != "jazz_dead"}
+    picked = cover(seeds, artists, slots=3, playable=lambda a: tracks.get(a["id"], []))
+    ids = [a["id"] for a, *_ in picked]
+    scores = [score for _, score, *_ in picked]
+    # Entran pop1 (etiqueta), jazz_ok (saltando jazz_dead) y corrido1 (señal al final) aunque slots=3 < posición 6.
+    assert ids == ["pop1", "jazz_ok", "corrido1"], ids
+    assert scores == sorted(scores, reverse=True) and len(ids) == len(set(ids))
+    # Si sobran cupos, rellena con los mejores restantes sin duplicar y mantiene orden por puntuación.
+    picked_more = cover(seeds, artists, slots=4, playable=lambda a: tracks.get(a["id"], []))
+    assert [a["id"] for a, *_ in picked_more] == ["pop1", "pop2", "jazz_ok", "corrido1"]
+
+
 def test_interleave():
     artists = [({"id": "a"}, 0.9, ["x"], {}), ({"id": "b"}, 0.5, ["y"], {"collab": {"s"}}), ({"id": "c"}, 0.4, ["z"], {})]
     tracks = {"a": [{"id": "a1"}, {"id": "a2"}, {"id": "a3"}], "b": [{"id": "b1"}]}
@@ -42,22 +68,9 @@ def test_interleave():
     assert interleave(artists, tracks, limit=10)[1]["signals"] == ["collab"]
 
 
-def test_build_graph():
-    seeds = [({"id": "s", "title": "Reckoner", "artist": "Radiohead"}, {"art rock": 5, "british": 2, "jazz": 1})]
-    artists = [({"id": "a", "name": "Kate Bush"}, 0.3, ["art rock", "british"], {"listeners": {"s"}}), ({"id": "b", "name": "Sin canciones"}, 0.2, ["jazz"], {"collab": {"s"}})]
-    recs = [{"song": {"id": "k", "title": "This Woman's Work", "artist": "Kate Bush"}, "score": 0.3, "sharedTags": ["art rock", "british"], "artistId": "a"}]
-    graph = build_graph(seeds, artists, recs)
-    ids = {n["id"] for n in graph["nodes"]}
-    assert ids == {"seed:s", "tag:art rock", "tag:british", "signal:listeners", "artist:a", "song:k"}, ids  # "b", "jazz" y "collab" no aparecen
-    edges = {(e["from"], e["to"]) for e in graph["edges"]}
-    assert edges == {("seed:s", "tag:art rock"), ("seed:s", "tag:british"), ("tag:art rock", "artist:a"), ("tag:british", "artist:a"),
-                     ("seed:s", "signal:listeners"), ("signal:listeners", "artist:a"), ("artist:a", "song:k")}, edges
-    assert all(e["from"] in ids and e["to"] in ids for e in graph["edges"])
-
-
 if __name__ == "__main__":
     test_rank()
     test_hybrid()
+    test_cover()
     test_interleave()
-    test_build_graph()
     print("ok")

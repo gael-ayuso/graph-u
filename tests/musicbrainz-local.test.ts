@@ -55,6 +55,22 @@ describe("MusicBrainz local PostgreSQL queries", () => {
     expect(sql).toContain("LIMIT 20");
   });
 
+  it("escapes literal backslashes in both title and artist patterns", async () => {
+    const title = String.raw`Back\Track`;
+    const artist = String.raw`Band\Name`;
+
+    await searchSongs(title, artist);
+
+    const [sql, values] = query.mock.calls[1];
+    expect(sql).toContain("ILIKE $2");
+    expect(sql).toContain("ILIKE $4");
+    expect(sql).not.toContain(title);
+    expect(sql).not.toContain(artist);
+    expect(values).toEqual([
+      title, String.raw`%Back\\Track%`, artist, String.raw`%Band\\Name%`,
+    ]);
+  });
+
   it("distinguishes an empty catalog from a legitimate search with zero matches", async () => {
     await expect(searchSongs("Nothing", "")).resolves.toEqual([]);
     query.mockReset();

@@ -251,6 +251,14 @@
 .demo-button-small { min-height: 38px; padding: 8px 12px; font-size: 12px; }
 .demo-button-small:disabled { background: transparent; border-color: var(--olive); color: var(--cream); opacity: .7; }
 .demo-error { margin: -8px 0 24px; padding: 14px 16px; border: 1px solid var(--clay); color: var(--cream); font-size: 14px; line-height: 1.6; }
+.recommendations-panel { margin-top: 26px; }
+.graph-canvas { background: var(--forest); }
+.graph-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.graph-legend li { display: flex; align-items: center; gap: 6px; }
+.graph-legend span { width: 10px; height: 10px; }
+.list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.list-actions a { color: var(--cream); font-size: 12px; }
+.list-actions a:hover { color: var(--clay); }
 .song-workspace { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
 .song-panel { min-width: 0; border: 1px solid var(--olive); }
 .song-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 52px; padding: 12px 18px; border-bottom: 1px solid var(--olive); background: color-mix(in srgb, var(--olive) 20%, var(--forest)); }

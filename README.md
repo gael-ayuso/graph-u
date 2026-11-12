@@ -79,7 +79,7 @@ Esquemas propuestos: musicbrainz y app
 
 En esta propuesta, Zustand administra canciones semilla, filtros y nodos activos; TanStack Query gestiona consultas y mutaciones; react-vis-graph-wrapper representa las relaciones musicales; y FastAPI concentra las operaciones de negocio, las consultas al catálogo y los algoritmos. Las credenciales de PostgreSQL permanecen en el servidor.
 
-FastAPI, react-vis-graph-wrapper y los algoritmos de Python forman parte de la arquitectura prevista. La autenticación actual utiliza Clerk y los perfiles se gestionan desde Next.js con Prisma.
+El backend FastAPI ya existe en [backend/](backend/README.md): busca en MusicBrainz y recomienda de forma híbrida: etiquetas (TF-IDF y similitud coseno), canciones y artistas similares según Last.fm (`getSimilar`) y colaboraciones entre artistas. La pantalla `/explorar` dibuja esas recomendaciones como un grafo con react-vis-graph-wrapper. Personalized PageRank y los demás algoritmos forman parte de la arquitectura prevista. La autenticación actual utiliza Clerk y los perfiles se gestionan desde Next.js con Prisma.
 
 ## Requisitos
 
@@ -90,7 +90,7 @@ Para ejecutar la aplicación actual:
 - Una aplicación de Clerk con sus claves pública y privada.
 - Un endpoint de webhook y su secreto de firma para sincronizar cambios y eliminaciones de usuarios desde Clerk.
 
-Python y las bibliotecas del recomendador corresponden a etapas futuras y no son necesarios para iniciar la aplicación Next.js actual.
+- Python 3.11+ para el backend de búsqueda y recomendaciones.
 
 ## Instalación y uso
 
@@ -111,6 +111,7 @@ Python y las bibliotecas del recomendador corresponden a etapas futuras y no son
    | `DATABASE_URL` | Conexión a PostgreSQL para los perfiles |
    | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL si utilizas la configuración local de Compose |
    | `TEST_DATABASE_URL` | Conexión opcional a una base exclusiva para pruebas de integración |
+   | `BACKEND_URL` | URL del backend FastAPI (por defecto `http://127.0.0.1:8000`) |
 
    Ajusta las credenciales de ejemplo a tu entorno. No publiques `.env.local` ni uses el prefijo `NEXT_PUBLIC_` para secretos o conexiones de base de datos.
 
@@ -121,7 +122,7 @@ Python y las bibliotecas del recomendador corresponden a etapas futuras y no son
    npm run db:deploy
    ```
 
-5. Inicia el servidor:
+5. Inicia el backend FastAPI (ver [backend/README.md](backend/README.md)) y después el servidor de Next.js:
 
    ```bash
    npm run dev
@@ -195,6 +196,8 @@ La generación de Prisma durante el build no necesita una conexión activa a Pos
 
 - [Documento original de requisitos](REQUIEREMENTS.md): alcance funcional, arquitectura propuesta y etapas de desarrollo.
 - [Autenticación y PostgreSQL](docs/AUTH.md): configuración de Clerk, perfiles, webhooks, pruebas y despliegue.
+- [Backend y recomendador](backend/README.md): endpoints FastAPI y explicación del algoritmo.
+- [Demo de canciones](docs/DEMO.md): búsqueda, lista y recomendaciones.
 
 ## Contribuciones
 

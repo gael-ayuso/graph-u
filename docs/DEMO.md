@@ -2,17 +2,23 @@
 
 Abre `/demo`. Busca por título, artista o ambos; añade canciones a la lista y quítalas cuando quieras. La lista se conserva en el almacenamiento local del navegador y no se sincroniza con las cuentas de Clerk.
 
-## Fuente local
+Con canciones en la lista, pulsa «Recomendar con mi lista»: el backend devuelve canciones parecidas con su porcentaje de parecido y lo que lo explica: etiquetas compartidas, canciones o artistas similares según Last.fm, o colaboraciones entre artistas. El algoritmo se describe en [backend/README.md](../backend/README.md).
 
-Las búsquedas usan una conexión PostgreSQL directa al MusicBrainz local de Docker, no la API pública ni comandos de Docker por búsqueda. El servidor usa `pg`, consultas parametrizadas, conexiones de solo lectura, un límite de 20 resultados y un timeout de 8 segundos. Las credenciales permanecen en el servidor.
+Si no te convencen, «Otras recomendaciones» trae artistas distintos con los mismos criterios, sin repetir los que ya viste. El explorador del grafo tiene el mismo botón.
 
-Valores predeterminados de esta instalación:
+«Ver en el grafo →» abre `/explorar`, que dibuja las recomendaciones de tu lista como un grafo: tu canción → etiquetas, similitud en Last.fm o colaboraciones → artistas → canciones. Al seleccionar un nodo se muestra por qué aparece.
 
-- Contenedor: `musicbrainz-docker-db-1`.
-- Dirección PostgreSQL: `127.0.0.1:5433`, publicada hacia el puerto interno `5432`. No es una dirección HTTP.
-- Base y usuario: `musicbrainz`.
-- Tablas: `musicbrainz.recording` y `musicbrainz.artist_credit`.
+## Requisitos
 
-La conexión se configura con `MUSICBRAINZ_DATABASE_URL` en `.env.local` (ignorado por Git). Es independiente de `DATABASE_URL`, utilizado por Prisma para los perfiles de la aplicación. El proceso de Next.js solo necesita acceso al puerto PostgreSQL; no necesita acceso al daemon de Docker.
+La demo necesita el backend FastAPI en ejecución (`backend/`, puerto 8000) y las claves de Clerk en `.env.local`, porque el middleware de Clerk envuelve todas las rutas.
 
-El catálogo debe estar importado en la base. Si faltan las tablas, la demo informa de ello y no muestra canciones ficticias. En la inspección inicial el contenedor estaba activo, pero la base todavía no tenía tablas de MusicBrainz. No se ha importado ni modificado ningún dato del catálogo.
+```bash
+cd backend && .venv/Scripts/python -m uvicorn app.main:app --port 8000
+npm run dev
+```
+
+## Fuente de datos
+
+Next.js no consulta MusicBrainz directamente: `lib/musicbrainz.ts` reenvía las búsquedas y recomendaciones al backend (`BACKEND_URL`, por defecto `http://127.0.0.1:8000`). El backend usa ahora la API pública de MusicBrainz, limitada a 1 petición por segundo, por lo que la primera recomendación tarda varios segundos.
+
+La alternativa prevista es un MusicBrainz local en Docker (PostgreSQL en `127.0.0.1:5433`, base y usuario `musicbrainz`). Cuando esté importado, el backend podrá consultarlo directamente con las tablas `recording`, `artist_credit`, `artist_tag` y `recording_tag`.

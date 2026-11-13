@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 from . import musicbrainz as mb
-from .recommender import build_graph, distribute, hybrid, interleave, rank
+from .graph import build_graph
+from .recommender import distribute, hybrid, interleave, rank
 
 app = FastAPI(title="GraphU API", version="0.1.0")
 RECOMMENDATION_SECONDS = 45.0

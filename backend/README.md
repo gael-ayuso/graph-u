@@ -201,9 +201,9 @@ Cada `seedResults` incluye `artistId` cuando se conoce y `searchLimited` si qued
 
 ### Grafo explicativo
 
-La respuesta incluye `graph`, utilizado para el detalle de una tanda en `/explorar`:
+La respuesta incluye `graph`, utilizado para el detalle de una tanda en `/explorar`. NetworkX exporta la topología construida a partir de las razones y el grado de cada nodo:
 
-- **Nodos** (`id`, `type`, `label`, `detail?`, `score?`): `seed`, `tag`, `signal`, `artist`, `song` y `status` (motivo por el que una semilla no tiene resultados en esta tanda).
+- **Nodos** (`id`, `type`, `label`, `detail?`, `score?`, `degree`): `seed`, `tag`, `signal`, `artist`, `song` y `status` (motivo por el que una semilla no tiene resultados en esta tanda).
 - **Aristas** (`from`, `to`): semilla → etiqueta o señal → artista → canción.
 
 Las etiquetas y señales pertenecen a su semilla; los nodos de artista pertenecen a cada rama y resultado. Así, compartir un artista o el nombre de una señal no crea caminos falsos hacia recomendaciones de otras semillas. Las semillas sin resultados apuntan a un nodo de estado y muestran su explicación también en una lista accesible en la demo y el explorador.

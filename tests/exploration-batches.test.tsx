@@ -298,4 +298,3 @@ describe("T4 shared exploration controls and batches", () => {
     expect(checkbox("Glory Box").props.checked).toBe(true);
   });
 });
-

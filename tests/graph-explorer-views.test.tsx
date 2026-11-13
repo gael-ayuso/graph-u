@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
+import { DataSet } from "vis-data";
 import {
   clickButton,
   createMemoryStorage,
@@ -70,8 +71,8 @@ import { writeSongs } from "@/lib/saved-song-list";
 
 type MockGraphProps = {
   graph: {
-    nodes: { id: string; label?: string; level?: number }[];
-    edges: { id: string; from: string; to: string }[];
+    nodes: { id: string; label?: string; level?: number; opacity?: number }[];
+    edges: { id: string; from: string; to: string; width?: number; color?: { color?: string; opacity?: number } }[];
   };
   options: { physics?: boolean | { enabled?: boolean }; layout?: { hierarchical?: unknown } };
   events: { select?: (payload: { nodes: string[] }) => void };
@@ -258,6 +259,14 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
     expect(levels.get(`recording:${fixtures.recommendations.rec5.id}`)).toBe(2);
     expect(levels.get(`recording:${fixtures.recommendations.rec6.id}`)).toBe(3);
 
+    // Highlight only real ancestors/descendants in the cumulative projection.
+    await selectGraphNode(`recording:${fixtures.recommendations.rec4.id}`);
+    const summaryHighlight = graphProps().graph;
+    expect(summaryHighlight.nodes.find((n) => n.id === `recording:${fixtures.originals[1].id}`)?.opacity).toBe(1);
+    expect(summaryHighlight.nodes.find((n) => n.id === `recording:${fixtures.originals[0].id}`)?.opacity).toBe(0.2);
+    expect(summaryHighlight.edges.find((e) => e.from === `recording:${fixtures.recommendations.rec1.id}` && e.to === `recording:${fixtures.recommendations.rec4.id}`)?.color?.opacity).toBe(1);
+    expect(summaryHighlight.edges.find((e) => e.from === `recording:${fixtures.originals[0].id}`)?.color?.opacity).toBe(0.15);
+
     // Focus Batch 1 via selector -> isolated Batch 1 detail with type-based levels (seed=0, tag/signal=1, artist=2, song=3).
     const selector = findHostNodes(tree(), (n) => n.tag === "select" && n.props.id === "focused-batch")[0];
     const batch1Option = findHostNodes(selector, (n) => n.tag === "option")[1];
@@ -271,6 +280,15 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
     expect(b1Nodes.find((n) => n.id.startsWith("artist:"))?.level).toBe(2);
     expect(b1Nodes.find((n) => n.id === `song:${fixtures.recommendations.rec1.id}`)?.level).toBe(3);
 
+    // In detail, selecting one song does not highlight another branch of the same batch.
+    await selectGraphNode(`song:${fixtures.recommendations.rec1.id}`);
+    const detailHighlight = graphProps().graph;
+    expect(detailHighlight.nodes.find((n) => n.id === `seed:${fixtures.originals[1].id}`)?.opacity).toBe(1);
+    expect(detailHighlight.nodes.find((n) => n.id === `seed:${fixtures.originals[0].id}`)?.opacity).toBe(0.2);
+    expect(detailHighlight.nodes.find((n) => n.id === `song:${fixtures.recommendations.rec2.id}`)?.opacity).toBe(0.2);
+    expect(detailHighlight.edges.find((e) => e.to === `song:${fixtures.recommendations.rec1.id}`)?.color?.opacity).toBe(1);
+    expect(detailHighlight.edges.find((e) => e.to === `song:${fixtures.recommendations.rec2.id}`)?.color?.opacity).toBe(0.15);
+
     // Focus Batch 2 via its detail link -> still no POST and selection kept.
     const batchLinks = findHostNodes(tree(), (n) => n.tag === "a" && getTextContent(n) === "Ver detalle de esta tanda");
     expect(batchLinks).toHaveLength(3);
@@ -281,6 +299,75 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
     expect(batchCheckbox("Paper Tiger").props.checked).toBe(true);
     expect(findButtons(tree(), "Ampliar con 1 canción")).toHaveLength(1);
   });
+
+  it.each(["free", "hierarchical"] as const)(
+    "restores persistent DataSet styles across selections in summary and detail (%s)",
+    async (view) => {
+      const fixtures = createMultiBatchFixtures("user");
+      writeSongs(fixtures.originals);
+      fetchMock.mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === "/api/me/saved-recommendations") return Promise.resolve(jsonResponse({ songs: [] }));
+        if (url === "/api/recommendations") return Promise.resolve(jsonResponse(fixtures.responses.batch1));
+        throw new Error(`Unexpected fetch: ${url}`);
+      });
+      await mount(<GraphApp />);
+      clickButton(button("Iniciar desde Mi lista"));
+      await reactTestRuntime.flush();
+      if (view === "hierarchical") {
+        clickButton(button("Por niveles"));
+        await reactTestRuntime.flush();
+      }
+
+      async function checkTransitions(first: string, second: string) {
+        const initial = graphProps().graph;
+        const nodes = new DataSet(initial.nodes);
+        const edges = new DataSet(initial.edges);
+        const initialNodes = new Map(nodes.get().map((node) => [node.id, node.opacity]));
+        const initialEdges = new Map(edges.get().map((edge) => [edge.id, { width: edge.width, color: edge.color }]));
+        const applyUpdate = () => {
+          const next = graphProps().graph;
+          // Like the wrapper, keep the same DataSets and merge the next objects by id.
+          nodes.update(next.nodes);
+          edges.update(next.edges);
+        };
+        expect(nodes.get(second)?.opacity).toBe(1);
+        await selectGraphNode(first);
+        expect(getTextContent(graphActionsSection())).toContain("Glory Box");
+        applyUpdate();
+        expect(nodes.get(second)?.opacity).toBe(0.2);
+        expect(edges.get().some((edge) => edge.width === 2 && edge.color?.opacity === 1)).toBe(true);
+        expect(edges.get().some((edge) => edge.width === 1 && edge.color?.opacity === 0.15)).toBe(true);
+
+        await selectGraphNode(second);
+        applyUpdate();
+        expect(nodes.get(second)?.opacity).toBe(1);
+        // DataSet retains merged attributes; it must match every emitted selection style.
+        for (const edge of graphProps().graph.edges) {
+          expect(edges.get(edge.id)).toMatchObject({ width: edge.width, color: edge.color });
+        }
+
+        graphProps().events.select?.({ nodes: [] });
+        await reactTestRuntime.flush();
+        applyUpdate();
+        expect(new Set(nodes.getIds())).toEqual(new Set(initialNodes.keys()));
+        expect(new Set(edges.getIds())).toEqual(new Set(initialEdges.keys()));
+        for (const node of nodes.get()) expect(node.opacity).toBe(initialNodes.get(node.id));
+        for (const edge of edges.get()) {
+          expect({ width: edge.width, color: edge.color }).toEqual(initialEdges.get(edge.id));
+          expect(edge.width).toBe(view === "free" ? 1.2 : 1);
+          expect(edge.color?.opacity).toBe(view === "free" ? 0.35 : 1);
+          expect(edge.color?.color).toBe(view === "free" ? "#ebdbb2" : "#665c54");
+        }
+      }
+
+      await checkTransitions(`recording:${fixtures.recommendations.rec1.id}`, `recording:${fixtures.originals[0].id}`);
+      const selector = findHostNodes(tree(), (n) => n.tag === "select" && n.props.id === "focused-batch")[0];
+      const batch1 = findHostNodes(selector, (n) => n.tag === "option")[1];
+      await focusBatchValue(String(batch1.props.value));
+      await checkTransitions(`song:${fixtures.recommendations.rec1.id}`, `seed:${fixtures.originals[0].id}`);
+    },
+  );
 
   it("handles graph/dropdown selection, blocks expanding originals, and sends exact owner batch requestId/resultId on save/feedback", async () => {
     const fixtures = createMultiBatchFixtures("user");

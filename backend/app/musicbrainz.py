@@ -299,6 +299,26 @@ def collaborators(artist_id: str) -> Scored:
     return _optional(lambda: _collaborators(artist_id), {})
 
 
+@lru_cache(maxsize=1024)
+def _versions(title: str) -> Scored:
+    counts, names = Counter(), {}
+    for recording in _get("/recording", query=f"recording:{_quote(title)}", limit=100)["recordings"]:
+        credits = recording.get("artist-credit") or []
+        if credits and recording["title"].casefold() == title.casefold():
+            counts[credits[0]["artist"]["id"]] += 1
+            names[credits[0]["artist"]["id"]] = credits[0]["artist"]["name"]
+    return _normalized(counts, names)
+
+
+def versions(title: str) -> Scored:
+    """Artistas que grabaron una canción con el mismo título (versiones), más alto si la grabaron más veces.
+
+    Último recurso para canciones sin etiquetas ni datos en Last.fm (p. ej. corridos tradicionales):
+    quien canta el mismo repertorio suele ser del mismo estilo.
+    """
+    return _optional(lambda: _versions(title), {})
+
+
 # Last.fm: similitud colaborativa a partir de los scrobbles de sus usuarios.
 def _lastfm(method: str, **params) -> dict:
     if not LASTFM_API_KEY:

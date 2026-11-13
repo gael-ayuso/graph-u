@@ -39,7 +39,10 @@ def rank(seeds: list[Tags], candidates: list[tuple[dict, Tags]], exclude: set[st
         if scores[i] <= 0:
             break
         item, tags = pool[i]
-        shared = sorted(set(tags) & set(weights), key=lambda t: -weights[t])[:3]
+        shared = sorted(set(tags) & set(weights), key=lambda t: -weights[t])
+        # Las 3 de más peso + la mejor de cada semilla: así una semilla minoritaria sigue conectada.
+        per_seed = (max((t for t in shared if t in seed), key=seed.get, default=None) for seed in seeds)
+        shared = list(dict.fromkeys(shared[:3] + [t for t in per_seed if t]))
         ranked.append((item, round(float(scores[i]), 3), shared))
     return ranked
 

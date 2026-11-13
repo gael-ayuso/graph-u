@@ -48,4 +48,3 @@ export function writeSongs(songs: Song[]) {
   window.dispatchEvent(new Event(CHANGE_EVENT));
   return persisted;
 }
-

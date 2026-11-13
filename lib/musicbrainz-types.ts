@@ -51,6 +51,7 @@ export type GraphNode = {
   label: string;
   detail?: string;
   score?: number;
+  degree?: number; // conexiones del nodo (NetworkX)
 };
 
 export type RecommendationGraph = {

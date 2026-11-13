@@ -43,6 +43,17 @@ describe("GraphU backend client", () => {
     await expect(recommendSongs([seed])).rejects.toMatchObject({ status: 503 });
   });
 
+  it("handles non-JSON backend errors with a safe fallback", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("<html>502 Bad Gateway</html>", { status: 502 }));
+    await expect(recommendSongs([seed])).rejects.toMatchObject({
+      status: 503, message: "El backend de GraphU no pudo completar la solicitud.",
+    });
+    fetchMock.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
+    await expect(searchSongs("Reckoner", "")).rejects.toMatchObject({
+      status: 404, message: "El backend de GraphU no pudo completar la solicitud.",
+    });
+  });
+
   it("allows recommendations to finish the backend budget without extending search timeouts", async () => {
     const timeout = vi.spyOn(AbortSignal, "timeout");
     fetchMock.mockResolvedValueOnce(json({ seedTags: [], recommendations: [], seedResults: [], graph: { nodes: [], edges: [] } }));
@@ -100,7 +111,10 @@ describe("recommendations endpoint", () => {
     expect(badJsonRes.status).toBe(400);
 
     const invalidBodies: unknown[] = [
+      null,
+      {},
       { seeds: "not-an-array" },
+      { seeds: ["-".repeat(36)] },
       { seeds: [seed.replace(/-/g, "")] },
       { seeds: [seed], excludeArtists: "bad" },
       { seeds: [seed], excludeArtists: Array(201).fill(seed) },
@@ -134,6 +148,13 @@ describe("recommendations endpoint", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(getCurrentUserProfile).not.toHaveBeenCalled();
     expect(recordRecommendations).not.toHaveBeenCalled();
+  });
+
+  it("accepts uppercase UUIDs at the 10-seed and 200-artist boundaries", async () => {
+    fetchMock.mockResolvedValueOnce(json({ seedTags: [], recommendations: [], seedResults: [], graph: { nodes: [], edges: [] } }));
+    const response = await post({ seeds: Array(10).fill(seed.toUpperCase()), excludeArtists: Array(200).fill(artistId.toUpperCase()) });
+    expect(response.status).toBe(200);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ seeds: Array(10).fill(seed), excludeArtists: Array(200).fill(artistId) });
   });
 
   it("forwards already shown artists so the backend can exclude them", async () => {

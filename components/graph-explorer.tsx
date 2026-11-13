@@ -93,6 +93,22 @@ function visNode(node: GraphNode, view: GraphView, depth?: number): Node {
   };
 }
 
+/** Nodos alcanzables desde `start` siguiendo las aristas hacia delante o hacia atrás. */
+function reach(edges: { from: string; to: string }[], start: string, forward: boolean) {
+  const seen = new Set([start]);
+  const queue = [start];
+  for (const id of queue) {
+    for (const edge of edges) {
+      const [from, to] = forward ? [edge.from, edge.to] : [edge.to, edge.from];
+      if (from === id && !seen.has(to)) {
+        seen.add(to);
+        queue.push(to);
+      }
+    }
+  }
+  return seen;
+}
+
 const OPTIONS = {
   height: "100%",
   autoResize: true,
@@ -159,19 +175,33 @@ export function GraphExplorer() {
   const detailById = useMemo(() => new Map(data?.graph.nodes.map((node) => [node.id, node])), [data]);
   const summaryById = useMemo(() => new Map(projection.graph?.nodes.map((node) => [node.id, node])), [projection.graph]);
   const graph = useMemo(() => {
+    const edges = batch && data ? data.graph.edges : projection.graph?.edges;
+    const nodeExists = batch && data ? detailById.has(selectedId ?? "") : summaryById.has(selectedId ?? "");
+    const ancestors = selectedId && edges && nodeExists ? reach(edges, selectedId, false) : null;
+    const descendants = selectedId && edges && nodeExists ? reach(edges, selectedId, true) : null;
+    const onPath = (id: string) => !!ancestors?.has(id) || !!descendants?.has(id);
+    const styleNode = (node: Node) => ({ ...node, opacity: ancestors && !onPath(String(node.id)) ? 0.2 : 1 });
+    const styleEdge = <T extends { from: string; to: string }>(edge: T) => {
+      const normal = view === "free"
+        ? { width: OPTIONS.edges.width, color: OPTIONS.edges.color }
+        : { width: 1, color: { color: COLORS.olive, highlight: COLORS.seed, opacity: 1 } };
+      if (!ancestors || !descendants) return { ...edge, ...normal };
+      const highlighted = (ancestors.has(edge.from) && ancestors.has(edge.to)) || (descendants.has(edge.from) && descendants.has(edge.to));
+      return { ...edge, width: highlighted ? 2 : 1, color: { ...normal.color, color: highlighted ? COLORS.seed : COLORS.olive, opacity: highlighted ? 1 : 0.15 } };
+    };
     if (batch && data) return {
       nodes: data.graph.nodes.map((node) => {
         const seed = node.type === "seed" ? seeds.find((song) => `seed:${song.id}` === node.id) : null;
-        return visNode(seed ? { ...node, label: seed.title, detail: seed.artist } : node, view);
+        return styleNode(visNode(seed ? { ...node, label: seed.title, detail: seed.artist } : node, view));
       }),
-      edges: data.graph.edges.map((edge) => ({ ...edge, id: `${edge.from}>${edge.to}` })),
+      edges: data.graph.edges.map((edge) => styleEdge({ ...edge, id: `${edge.from}>${edge.to}` })),
     };
     if (!projection.graph) return null;
     return {
-      nodes: projection.graph.nodes.map((node) => visNode({ id: node.id, type: node.batchId ? "song" : "seed", label: node.song.title, detail: node.song.artist }, view, node.depth)),
-      edges: projection.graph.edges.map(({ id, from, to }) => ({ id, from, to })),
+      nodes: projection.graph.nodes.map((node) => styleNode(visNode({ id: node.id, type: node.batchId ? "song" : "seed", label: node.song.title, detail: node.song.artist }, view, node.depth))),
+      edges: projection.graph.edges.map(({ id, from, to }) => styleEdge({ id, from, to })),
     };
-  }, [batch, data, seeds, projection.graph, view]);
+  }, [batch, data, seeds, projection.graph, view, selectedId, detailById, summaryById]);
   const events = useMemo(() => ({ select: ({ nodes }: { nodes: string[] }) => setSelection({ key: requestKey, id: nodes[0] ?? "" }) }), [requestKey]);
   const handleNetwork = useCallback((network: Network) => { guardVisNetwork(network); networkRef.current = network; }, []);
   function centerGraph() {

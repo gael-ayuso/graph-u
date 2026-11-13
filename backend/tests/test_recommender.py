@@ -34,6 +34,19 @@ def test_hybrid():
     assert ranked[0][3] == {"listeners": {"s"}} and ranked[2][2] == []
 
 
+def test_coverage_skips_empty_branches_and_reaches_lower_ranked_seed():
+    def rec(song, seed, artist):
+        return {"song": {"id": song, "title": song}, "artistId": artist, "reasons": [{"seedId": seed}]}
+
+    queues = [
+        [rec("pop1", "pop", "a"), rec("pop2", "pop", "b"), rec("pop3", "pop", "c")],
+        [rec("jazz_ok", "jazz", "d")],  # El candidato anterior no produjo pistas.
+        [rec("corrido", "corrido", "e")],
+    ]
+    assert [r["song"]["id"] for r in distribute(queues, 3)] == ["pop1", "jazz_ok", "corrido"]
+    assert [r["song"]["id"] for r in distribute(queues, 4)] == ["pop1", "jazz_ok", "corrido", "pop2"]
+
+
 def test_interleave():
     artists = [({"id": "a"}, 0.9, ["x"], {}), ({"id": "b"}, 0.5, ["y"], {"collab": {"s"}}), ({"id": "c"}, 0.4, ["z"], {})]
     tracks = {"a": [{"id": "a1"}, {"id": "a2"}, {"id": "a3"}], "b": [{"id": "b1"}]}
@@ -128,6 +141,6 @@ def test_excluded_signals_do_not_lower_tag_scores():
 if __name__ == "__main__":
     test_rank()
     test_hybrid()
+    test_coverage_skips_empty_branches_and_reaches_lower_ranked_seed()
     test_interleave()
-    test_build_graph()
     print("ok")

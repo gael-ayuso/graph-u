@@ -13,7 +13,7 @@ export default function ExplorePage() {
       </header>
       <main className="demo-main">
         <h1>Explora tus recomendaciones.</h1>
-        <p className="demo-intro">Cada camino del grafo muestra por qué se recomienda una canción: las etiquetas que comparte con tu lista, las canciones y artistas similares según Last.fm o las colaboraciones entre artistas.</p>
+        <p className="demo-intro">El resumen muestra qué canciones dieron lugar a cada recomendación. En el detalle de cada tanda puedes explorar las etiquetas, las señales de Last.fm y las colaboraciones que explican sus resultados.</p>
         <GraphExplorer />
       </main>
       <footer className="site-footer"><span>GraphU · Explorador</span><a href="https://musicbrainz.org/" target="_blank" rel="noreferrer">Datos de MusicBrainz ↗</a></footer>

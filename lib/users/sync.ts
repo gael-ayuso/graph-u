@@ -48,7 +48,7 @@ export async function syncProfile(profile: ProfileSnapshot): Promise<User> {
   // One PostgreSQL statement serializes concurrent webhook/first-access writes.
   // A deletion is terminal even if an older update arrives afterwards.
   const rows = await getDb().$queryRaw<User[]>`
-    INSERT INTO "User" (
+    INSERT INTO "app"."users" AS "User" (
       "id", "clerkId", "email", "name", "avatarUrl", "clerkUpdatedAt",
       "deletedAt", "createdAt", "updatedAt"
     ) VALUES (

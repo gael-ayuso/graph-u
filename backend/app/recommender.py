@@ -6,7 +6,8 @@
 - Colaboración: artistas que comparten créditos o banda con los de tus canciones.
 """
 
-from collections import Counter
+from collections import Counter, deque
+from collections.abc import Iterable
 
 import numpy as np
 from sklearn.feature_extraction import DictVectorizer
@@ -45,7 +46,8 @@ def rank(seeds: list[Tags], candidates: list[tuple[dict, Tags]], exclude: set[st
 
 # Peso de cada señal en la puntuación final (0-1).
 WEIGHTS = {"tags": 0.4, "songs": 0.25, "listeners": 0.2, "collab": 0.15}
-SIGNAL_LABELS = {"songs": "Canciones similares (Last.fm)", "listeners": "Artistas similares (Last.fm)", "collab": "Colaboraciones"}
+SIGNAL_LABELS = {"songs": "Canciones similares (Last.fm)", "versions": "Otra grabación de una canción similar (Last.fm)",
+                 "listeners": "Artistas similares (Last.fm)", "collab": "Colaboraciones"}
 
 # Señal de un artista candidato: (artista, puntuación 0-1, ids de las semillas que la originan).
 Signal = dict[str, tuple[dict, float, set[str]]]
@@ -62,6 +64,7 @@ def hybrid(by_tags: list[tuple[dict, float, list[str]]], signals: dict[str, Sign
     """
     by_tags = [t for t in by_tags if t[0]["id"] not in exclude]
     best_tag = max((score for _, score, _ in by_tags), default=0) or 1
+    signals = {name: {key: value for key, value in found.items() if key not in exclude and value[1] > 0} for name, found in signals.items()}
     active = ({"tags"} if by_tags else set()) | {name for name, found in signals.items() if found}
     total = sum(WEIGHTS[name] for name in active) or 1
     items = {a["id"]: [a, WEIGHTS["tags"] * score / best_tag, shared, {}] for a, score, shared in by_tags}
@@ -86,31 +89,66 @@ def interleave(artists: list[Ranked], tracks: dict[str, list[dict]], limit: int,
     return [p[2] for p in sorted(picks, key=lambda p: p[:2])][:limit]
 
 
-def build_graph(seeds: list[tuple[dict, Tags]], artists: list[Ranked], recommendations: list[dict]) -> dict:
-    """Grafo que explica las recomendaciones: semilla → etiqueta/señal → artista → canción.
+def distribute(queues: list[Iterable[dict]], limit: int, per_artist: int = 2) -> list[dict]:
+    """Un turno por semilla; sin repetir grabaciones ni versiones del mismo título/artista."""
+    pending = deque(iter(queue) for queue in queues)
+    selected, titles, artist_counts = {}, {}, Counter()
+    while pending and len(selected) < limit:
+        queue = pending.popleft()
+        for rec in queue:
+            song_id = rec["song"]["id"]
+            title_key = (rec["artistId"], rec["song"]["title"].strip().casefold())
+            duplicate = selected.get(song_id) or titles.get(title_key)
+            if duplicate is not None:
+                known = {reason["seedId"] for reason in duplicate["reasons"]}
+                duplicate["reasons"].extend(reason for reason in rec["reasons"] if reason["seedId"] not in known)
+                pending.append(queue)
+                break
+            covered = {reason["seedId"] for chosen in selected.values() for reason in chosen["reasons"]}
+            adds_seed = any(reason["seedId"] not in covered for reason in rec["reasons"])
+            # La cobertura de una semilla tiene prioridad sobre la diversidad de artistas.
+            if artist_counts[rec["artistId"]] >= per_artist and not adds_seed:
+                continue
+            selected[song_id] = rec
+            titles[title_key] = rec
+            artist_counts[rec["artistId"]] += 1
+            pending.append(queue)
+            break
+    return list(selected.values())
 
-    Cada camino desde una semilla hasta una canción es una razón por la que se recomendó.
-    """
-    used = {r["artistId"] for r in recommendations}
-    artists = [a for a in artists if a[0]["id"] in used]
-    # Canciones agrupadas por artista para que las aristas no se crucen al dibujar.
-    order = {a["id"]: i for i, (a, *_) in enumerate(artists)}
-    recommendations = sorted(recommendations, key=lambda r: order[r["artistId"]])
-    tags = list(dict.fromkeys(tag for _, _, shared, _ in artists for tag in shared))
-    signals = {name: set().union(*(sig[name] for *_, sig in artists if name in sig)) for name in SIGNAL_LABELS}
-    signals = {name: seed_ids for name, seed_ids in signals.items() if seed_ids}
-    nodes = (
-        [{"id": f"seed:{s['id']}", "type": "seed", "label": s["title"], "detail": s["artist"]} for s, _ in seeds]
-        + [{"id": f"tag:{t}", "type": "tag", "label": t} for t in tags]
-        + [{"id": f"signal:{name}", "type": "signal", "label": SIGNAL_LABELS[name]} for name in signals]
-        + [{"id": f"artist:{a['id']}", "type": "artist", "label": a["name"], "score": score} for a, score, _, _ in artists]
-        + [{"id": f"song:{r['song']['id']}", "type": "song", "label": r["song"]["title"], "detail": r["song"]["artist"], "score": r["score"]} for r in recommendations]
-    )
-    edges = (
-        [{"from": f"seed:{s['id']}", "to": f"tag:{t}"} for s, seed_tags in seeds for t in tags if t in seed_tags]
-        + [{"from": f"seed:{seed_id}", "to": f"signal:{name}"} for name, seed_ids in signals.items() for seed_id in sorted(seed_ids)]
-        + [{"from": f"tag:{t}", "to": f"artist:{a['id']}"} for a, _, shared, _ in artists for t in shared]
-        + [{"from": f"signal:{name}", "to": f"artist:{a['id']}"} for a, _, _, sig in artists for name in sig]
-        + [{"from": f"artist:{r['artistId']}", "to": f"song:{r['song']['id']}"} for r in recommendations]
-    )
-    return {"nodes": nodes, "edges": edges}
+
+def build_graph(seeds: list[tuple[dict, Tags]], recommendations: list[dict], seed_results: list[dict]) -> dict:
+    """Ramas por semilla y resultado: una señal nunca crea caminos de otras canciones."""
+    nodes, edges = {}, set()
+
+    def node(id: str, type: str, label: str, **extra):
+        nodes[id] = {"id": id, "type": type, "label": label, **extra}
+
+    for song, _ in seeds:
+        node(f"seed:{song['id']}", "seed", song["title"], detail=song["artist"])
+    for rec in recommendations:
+        song = rec["song"]
+        song_node = f"song:{song['id']}"
+        node(song_node, "song", song["title"], detail=song["artist"], score=rec["score"])
+        for reason in rec["reasons"]:
+            seed_id = reason["seedId"]
+            # Una instancia por resultado evita atribuir a otra canción del mismo artista
+            # la señal track.getSimilar que solo corresponde a esta grabación.
+            artist_node = f"artist:{seed_id}:{rec['artistId']}:{song['id']}"
+            node(artist_node, "artist", song["artist"], score=reason["score"])
+            edges.add((artist_node, song_node))
+            for tag in reason["sharedTags"]:
+                tag_node = f"tag:{seed_id}:{tag}"
+                node(tag_node, "tag", tag)
+                edges.update(((f"seed:{seed_id}", tag_node), (tag_node, artist_node)))
+            for signal in reason["signals"]:
+                signal_node = f"signal:{seed_id}:{signal}"
+                node(signal_node, "signal", SIGNAL_LABELS[signal])
+                edges.update(((f"seed:{seed_id}", signal_node), (signal_node, artist_node)))
+    for result in seed_results:
+        if result["status"] == "recommended":
+            continue
+        status_node = f"status:{result['seedId']}"
+        node(status_node, "status", "Sin resultados en esta tanda", detail=result["message"])
+        edges.add((f"seed:{result['seedId']}", status_node))
+    return {"nodes": list(nodes.values()), "edges": [{"from": a, "to": b} for a, b in sorted(edges)]}

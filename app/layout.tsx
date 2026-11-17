@@ -5,6 +5,7 @@ import { shadcn } from "@clerk/ui/themes";
 import { Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { ProfileSync } from "@/components/profile-sync";
+import { QueryProvider } from "@/components/providers/query-provider";
 import "./globals.css";
 import "./gruvbox.css";
 
@@ -59,10 +60,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             },
           }}
         >
-          <Suspense fallback={null}>
-            <ProfileSync />
-          </Suspense>
-          {children}
+          <QueryProvider>
+            <Suspense fallback={null}>
+              <ProfileSync />
+            </Suspense>
+            {children}
+          </QueryProvider>
         </ClerkProvider>
       </body>
     </html>

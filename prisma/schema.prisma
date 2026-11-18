@@ -43,11 +43,15 @@ model UserPreferences {
 }
 
 model UserFavoriteRecording {
-  id          String   @id @default(uuid())
-  userId      String
-  recordingId String   @db.Uuid
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  userId           String
+  recordingId      String   @db.Uuid
+  title            String?
+  artistName       String?
+  coverReleaseMbid String?  @db.Uuid
+  coverUrl         String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, recordingId])
   @@map("user_favorite_recording")
@@ -55,11 +59,14 @@ model UserFavoriteRecording {
 }
 
 model UserFavoriteArtist {
-  id        String   @id @default(uuid())
-  userId    String
-  artistId  String   @db.Uuid
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  userId           String
+  artistId         String   @db.Uuid
+  name             String?
+  coverReleaseMbid String?  @db.Uuid
+  coverUrl         String?
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, artistId])
   @@map("user_favorite_artist")
@@ -71,6 +78,7 @@ model Playlist {
   userId      String
   name        String          @db.VarChar(200)
   description String?
+  version     Int             @default(1)
   createdAt   DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -82,16 +90,37 @@ model Playlist {
 }
 
 model PlaylistTrack {
-  id          String   @id @default(uuid())
-  playlistId  String
-  recordingId String   @db.Uuid
-  position    Int
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  playlist    Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  id               String   @id @default(uuid())
+  playlistId       String
+  recordingId      String   @db.Uuid
+  title            String?
+  artistName       String?
+  coverReleaseMbid String?  @db.Uuid
+  coverUrl         String?
+  position         Int
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  playlist         Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 
   @@unique([playlistId, recordingId])
   @@unique([playlistId, position])
   @@map("playlist_track")
+  @@schema("app")
+}
+
+model CoverCache {
+  id               String   @id @default(uuid())
+  entityType       String   @db.VarChar(20)
+  mbid             String   @db.Uuid
+  releaseMbid      String?  @db.Uuid
+  releaseGroupMbid String?  @db.Uuid
+  coverUrl         String?
+  status           String   @db.VarChar(20)
+  checkedAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([entityType, mbid])
+  @@index([status, checkedAt])
+  @@map("cover_cache")
   @@schema("app")
 }
 

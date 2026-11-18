@@ -5,6 +5,9 @@ export type Song = {
   release: string | null;
   duration: number | null;
   comment: string | null;
+  releaseMbid?: string | null;
+  releaseGroupMbid?: string | null;
+  coverUrl?: string | null;
 };
 
 export type Recommendation = {

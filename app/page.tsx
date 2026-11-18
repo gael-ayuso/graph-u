@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Show, UserButton } from "@clerk/nextjs";
+import { Show } from "@clerk/nextjs";
 import { Suspense } from "react";
+import { GraphUUserButton } from "@/components/shared/graphu-user-button";
 import styles from "./page.module.css";
 import HeadphonesVideo from "./headphones-video";
 
@@ -16,8 +17,18 @@ export default function Home() {
           <a href="#coleccion">Tu colección</a>
           <Link href="/demo">Demo</Link>
           <Suspense fallback={null}>
-            <Show when="signed-out"><Link href="/sign-in" className={styles.signIn}>Iniciar sesión</Link></Show>
-            <Show when="signed-in"><UserButton /></Show>
+            <Show when="signed-out">
+              <Link href="/sign-in" className={styles.signIn}>Iniciar sesión</Link>
+            </Show>
+            <Show when="signed-in">
+              <Link href="/explorar">Explorar</Link>
+              <Link href="/favoritos">Favoritos</Link>
+              <Link href="/playlists">Playlists</Link>
+              <Link href="/perfil" className={styles.profileLink}>Mi perfil</Link>
+              <div className={styles.userControl}>
+                <GraphUUserButton />
+              </div>
+            </Show>
           </Suspense>
         </nav>
       </header>
@@ -29,7 +40,24 @@ export default function Home() {
             <h1 id="hero-title">Conecta tus gustos.<br /><span>Descubre otra canción.</span></h1>
             <p className={styles.intro}>La música lleva a más música. Imagina nuevas conexiones entre artistas y canciones con datos de MusicBrainz.</p>
             <div className={styles.actions}>
-              <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>Crear cuenta <span aria-hidden="true">↗</span></Link>
+              <Suspense
+                fallback={
+                  <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                    Crear cuenta <span aria-hidden="true">↗</span>
+                  </Link>
+                }
+              >
+                <Show when="signed-out">
+                  <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                    Crear cuenta <span aria-hidden="true">↗</span>
+                  </Link>
+                </Show>
+                <Show when="signed-in">
+                  <Link href="/perfil" className={`${styles.button} ${styles.primary}`}>
+                    Ir a mi perfil <span aria-hidden="true">↗</span>
+                  </Link>
+                </Show>
+              </Suspense>
               <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo de búsqueda <span aria-hidden="true">→</span></Link>
             </div>
           </div>
@@ -101,10 +129,36 @@ export default function Home() {
             </div>
             <div>
               <div className={styles.actions}>
-                <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>Crear cuenta <span aria-hidden="true">↗</span></Link>
+                <Suspense
+                  fallback={
+                    <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                      Crear cuenta <span aria-hidden="true">↗</span>
+                    </Link>
+                  }
+                >
+                  <Show when="signed-out">
+                    <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                      Crear cuenta <span aria-hidden="true">↗</span>
+                    </Link>
+                  </Show>
+                  <Show when="signed-in">
+                    <Link href="/perfil" className={`${styles.button} ${styles.primary}`}>
+                      Ir a mi perfil <span aria-hidden="true">↗</span>
+                    </Link>
+                  </Show>
+                </Suspense>
                 <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo <span aria-hidden="true">→</span></Link>
               </div>
-              <p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>
+              <Suspense fallback={<p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>}>
+                <Show when="signed-out">
+                  <p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>
+                </Show>
+                <Show when="signed-in">
+                  <p className={styles.account}>
+                    Accesos rápidos: <Link href="/favoritos">Favoritos</Link> · <Link href="/playlists">Playlists</Link> · <Link href="/explorar">Explorar grafo</Link>
+                  </p>
+                </Show>
+              </Suspense>
             </div>
           </section>
         </section>

@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
+import { GraphUUserButton } from "./graphu-user-button";
 
 const NAV_LINKS = [
   { href: "/explorar", label: "Explorar" },
-  { href: "/recomendaciones", label: "Recomendaciones" },
+  { href: "/demo", label: "Demo" },
   { href: "/favoritos", label: "Favoritos" },
   { href: "/playlists", label: "Playlists" },
   { href: "/perfil", label: "Perfil" },
@@ -41,6 +42,7 @@ export function AppNavbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                aria-current={isActive ? "page" : undefined}
                 className={`px-2 py-1.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--clay)] ${
                   isActive
                     ? "border-b-2 border-[var(--clay)] font-bold text-[var(--clay)]"
@@ -56,14 +58,8 @@ export function AppNavbar() {
         {/* Controles de cuenta y menú móvil */}
         <div className="flex items-center gap-3">
           {isSignedIn ? (
-            <div className="flex items-center border border-[var(--copper)] p-1">
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "h-8 w-8 rounded-none",
-                  },
-                }}
-              />
+            <div className="flex min-h-[44px] items-center border border-[var(--copper)] bg-[#32302f] p-1">
+              <GraphUUserButton />
             </div>
           ) : (
             <Link
@@ -101,6 +97,7 @@ export function AppNavbar() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
+                    aria-current={isActive ? "page" : undefined}
                     onClick={() => setMobileOpen(false)}
                     className={`block py-3 text-sm ${
                       isActive ? "font-bold text-[var(--clay)]" : "text-[var(--cream)]"

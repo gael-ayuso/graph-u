@@ -51,14 +51,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               fontFamily: "var(--font-geist-mono), monospace",
             },
             elements: {
-              rootBox: "auth-clerk-root",
-              cardBox: "auth-clerk-box",
-              card: "auth-clerk-card",
-              headerTitle: "auth-clerk-title",
               socialButtonsBlockButton: "auth-social-button",
               formButtonPrimary: "auth-submit-button",
               formFieldInput: "auth-input",
-              footer: "auth-clerk-footer",
             },
           }}
         >

@@ -84,7 +84,14 @@ export function savedRecommendations(request: Request) {
     });
     return { songs: favorites.flatMap((favorite) => {
       const explanation = results.find((result) => result.recordingId === favorite.recordingId)?.explanation;
-      return explanation && typeof explanation === "object" && !Array.isArray(explanation) && explanation.song ? [explanation.song] : [];
+      if (!explanation || typeof explanation !== "object" || Array.isArray(explanation) || !explanation.song) {
+        return [];
+      }
+      const song = explanation.song as Record<string, unknown>;
+      if (favorite.coverUrl && !song.coverUrl) {
+        return [{ ...song, coverUrl: favorite.coverUrl }];
+      }
+      return [song];
     }) };
   });
 }

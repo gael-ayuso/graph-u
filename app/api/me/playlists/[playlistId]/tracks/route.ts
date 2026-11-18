@@ -1,3 +1,4 @@
-import { playlistTracks } from "@/lib/app-queries";
+import { addPlaylistTrackHandler, getPlaylistTracksHandler } from "@/lib/music-library/playlists";
 
-export const GET = playlistTracks;
+export const GET = getPlaylistTracksHandler;
+export const POST = addPlaylistTrackHandler;

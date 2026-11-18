@@ -1,6 +1,7 @@
 import "server-only";
 
 import { notFound, pageResult, pagination, readApp, resourceId, type AppQuery } from "@/lib/app-api";
+import { buildCoverProxyUrl } from "@/lib/music-library/cover-url";
 
 type PlaylistContext = { params: Promise<{ playlistId: string }> };
 type RecommendationContext = { params: Promise<{ requestId: string }> };
@@ -39,10 +40,45 @@ export function playlists(request: Request) {
     const page = pagination(searchParams);
     const rows = await db.playlist.findMany({
       where: { userId }, orderBy: [{ createdAt: "desc" }, { id: "asc" }],
-      include: { _count: { select: { tracks: true } } },
+      include: {
+        _count: { select: { tracks: true } },
+        tracks: {
+          take: 4,
+          orderBy: { position: "asc" },
+          select: { recordingId: true, coverReleaseMbid: true, coverUrl: true },
+        },
+      },
       take: page.take, skip: page.skip,
     });
-    return pageResult(rows, page);
+    const paged = pageResult(rows, page);
+    return {
+      ...paged,
+      items: paged.items.map((row) => {
+        const previewTracks = Array.isArray((row as { tracks?: unknown }).tracks)
+          ? (row as { tracks: Array<{ recordingId: string; coverReleaseMbid?: string | null; coverUrl?: string | null }> }).tracks
+          : null;
+        if (!previewTracks) {
+          return row;
+        }
+        const previewCovers = previewTracks
+          .map(
+            (track) =>
+              track.coverUrl ??
+              buildCoverProxyUrl({
+                type: "recording",
+                mbid: track.recordingId,
+                releaseMbid: track.coverReleaseMbid ?? null,
+              })
+          )
+          .filter((url): url is string => Boolean(url));
+        const rest = { ...(row as Record<string, unknown>) };
+        delete rest.tracks;
+        return {
+          ...rest,
+          previewCovers,
+        };
+      }),
+    };
   });
 }
 

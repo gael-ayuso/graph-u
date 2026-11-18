@@ -290,7 +290,7 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
     expect(detailHighlight.edges.find((e) => e.to === `song:${fixtures.recommendations.rec2.id}`)?.color?.opacity).toBe(0.15);
 
     // Focus Batch 2 via its detail link -> still no POST and selection kept.
-    const batchLinks = findHostNodes(tree(), (n) => n.tag === "a" && getTextContent(n) === "Ver detalle de esta tanda");
+    const batchLinks = findHostNodes(tree(), (n) => n.tag === "a" && getTextContent(n) === "Ver grafo de esta tanda");
     expect(batchLinks).toHaveLength(3);
     (batchLinks[1].props.onClick as () => void)();
     await reactTestRuntime.flush();

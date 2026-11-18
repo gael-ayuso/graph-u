@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "@clerk/nextjs";
 import type { Recommendation, Song } from "@/lib/musicbrainz-types";
+import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
+import { CoverArt } from "@/components/shared/cover-art";
 
 type Vote = "LIKE" | "DISLIKE" | null;
 type ActionSong = Pick<Recommendation, "song" | "resultId">;
@@ -166,7 +168,7 @@ export function SavedRecommendationsPanel() {
       <p className="list-note">{account ? "Guardadas en tu cuenta." : "Guardadas en este navegador, sin iniciar sesión."} Guardar no cambia las canciones usadas para recomendar.</p>
       {error && <p className="list-note" role="alert">{error} {!ready && <button type="button" className="demo-button demo-button-small" onClick={retryLoad}>Reintentar</button>}</p>}
       <p className="list-note" role="status">{notice || "Evalúa cada recomendación con Me gusta o No me interesa. Puedes cambiar tu respuesta."}</p>
-      {songs.length ? <ul className="saved-songs">{songs.map((song) => <li key={song.id} className="saved-recommendation"><div className="song-info"><a className="song-title" href={`https://musicbrainz.org/recording/${song.id}`} target="_blank" rel="noreferrer">{song.title}<span className="sr-only"> (MusicBrainz, nueva pestaña)</span></a><p>{song.artist}</p></div><button type="button" className="remove-song" disabled={busy.size > 0} onClick={() => act({ song }, undefined, "save")} aria-label={`Quitar ${song.title} de guardadas`}>Quitar</button></li>)}</ul>
+      {songs.length ? <ul className="saved-songs">{songs.map((song) => <li key={song.id} className="saved-recommendation"><CoverArt src={resolveSongCoverUrl(song)} alt={`Portada de ${song.title}`} size={44} label={song.artist} /><div className="song-info"><a className="song-title" href={`https://musicbrainz.org/recording/${song.id}`} target="_blank" rel="noreferrer">{song.title}<span className="sr-only"> (MusicBrainz, nueva pestaña)</span></a><p>{song.artist}</p></div><button type="button" className="remove-song" disabled={busy.size > 0} onClick={() => act({ song }, undefined, "save")} aria-label={`Quitar ${song.title} de guardadas`}>Quitar</button></li>)}</ul>
         : <p className="song-empty">{ready ? "Aún no guardas canciones. Pulsa Guardar en una recomendación." : error ? "Tus canciones no están disponibles. Reintenta la carga." : "Cargando canciones guardadas…"}</p>}
     </section>
   );

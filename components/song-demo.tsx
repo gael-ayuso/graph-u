@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import type { Song } from "@/lib/musicbrainz-types";
+import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
+import { CoverArt } from "@/components/shared/cover-art";
 import { SavedRecommendationsPanel } from "@/components/recommendation-library";
 import { ExplorationControls, ExplorationBatches } from "@/components/exploration-batches";
 
@@ -87,6 +89,12 @@ export function SongDemo() {
             <ul className="song-results">
               {results.map((song) => (
                 <li className="song-row" key={song.id}>
+                  <CoverArt
+                    src={resolveSongCoverUrl(song)}
+                    alt={`Portada de ${song.title}`}
+                    size={48}
+                    label={song.artist}
+                  />
                   <div className="song-info"><a href={`https://musicbrainz.org/recording/${song.id}`} target="_blank" rel="noreferrer" className="song-title">{song.title}<span className="sr-only"> (ver en MusicBrainz, nueva pestaña)</span></a><p>{song.artist}</p>{(song.release || song.comment) && <p className="song-detail">{[song.release, song.comment].filter(Boolean).join(" · ")}</p>}</div>
                   <span className="song-duration" aria-label={song.duration ? undefined : "Duración no disponible"}>{duration(song.duration)}</span>
                   <button type="button" className="demo-button demo-button-small" disabled={savedIds.has(song.id)} onClick={() => addSong(song)} aria-label={`${savedIds.has(song.id) ? "Añadida" : "Añadir"}: ${song.title}, ${song.artist}`}>{savedIds.has(song.id) ? "Añadida" : "Añadir"}</button>
@@ -101,7 +109,17 @@ export function SongDemo() {
           <p className="list-note">{temporary ? "La lista se mantiene solo en esta pestaña: el almacenamiento del navegador no está disponible." : "Se guarda en este navegador, sin iniciar sesión."}</p>
           {saved.length > 10 && <p className="list-note">Las recomendaciones usan las primeras 10 canciones de tu lista. Las demás no participan en esta tanda.</p>}
           {saved.length ? <ol className="saved-songs">{saved.map((song, index) => (
-            <li className="saved-song" key={song.id}><span className="saved-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div className="song-info"><span className="song-title">{song.title}</span><p>{song.artist}</p></div><button type="button" className="remove-song" onClick={() => removeSong(song)} aria-label={`Quitar ${song.title} de mi lista`}>Quitar</button></li>
+            <li className="saved-song" key={song.id}>
+              <span className="saved-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+              <CoverArt
+                src={resolveSongCoverUrl(song)}
+                alt={`Portada de ${song.title}`}
+                size={40}
+                label={song.artist}
+              />
+              <div className="song-info"><span className="song-title">{song.title}</span><p>{song.artist}</p></div>
+              <button type="button" className="remove-song" onClick={() => removeSong(song)} aria-label={`Quitar ${song.title} de mi lista`}>Quitar</button>
+            </li>
           ))}</ol> : <p className="song-empty">Tu lista está vacía.<br />Pulsa «Añadir» junto a una canción.</p>}
 
           <p className="sr-only" role="status">{notice}</p>

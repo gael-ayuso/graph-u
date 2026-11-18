@@ -4,6 +4,8 @@ import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "re
 import type { Network, Node, Options } from "react-vis-graph-wrapper";
 import dynamic from "next/dynamic";
 import type { GraphNode } from "@/lib/musicbrainz-types";
+import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
+import { CoverArt } from "@/components/shared/cover-art";
 import { projectRecommendationGraph } from "@/lib/recommendation-graph";
 import { SELECTION_CAP } from "@/lib/recommendation-exploration";
 import { readSongs, snapshot, subscribe } from "@/lib/saved-song-list";
@@ -262,7 +264,15 @@ export function GraphExplorer() {
               {available.map(({ recommendation: rec, batch: owner }) => <option key={rec.song.id} value={rec.song.id}>{rec.song.title} · {rec.song.artist} · Tanda {state.batches.indexOf(owner) + 1}</option>)}
             </select>
             {active && <>
-              <div className="song-info"><h4>{active.recommendation.song.title}</h4><p>{active.recommendation.song.artist} · Tanda {state.batches.indexOf(active.batch) + 1}{batch && active.batch.id === batch.id ? ` · ${percent(active.recommendation.score)}` : ""}</p><p className="song-detail">A partir de: {originText}</p></div>
+              <div className="graph-song-header">
+                <CoverArt
+                  src={resolveSongCoverUrl(active.recommendation.song)}
+                  alt={`Portada de ${active.recommendation.song.title}`}
+                  size={52}
+                  label={active.recommendation.song.artist}
+                />
+                <div className="song-info"><h4>{active.recommendation.song.title}</h4><p>{active.recommendation.song.artist} · Tanda {state.batches.indexOf(active.batch) + 1}{batch && active.batch.id === batch.id ? ` · ${percent(active.recommendation.score)}` : ""}</p><p className="song-detail">A partir de: {originText}</p></div>
+              </div>
               <label className="exploration-check"><input type="checkbox" checked={checked} disabled={!!state.pending || (!checked && state.selectedIds.length >= SELECTION_CAP)} onChange={(event) => select(active.recommendation.song.id, event.target.checked)} /> <span>Elegir para ampliar</span></label>
               <RecommendationActions recommendation={active.recommendation} requestId={active.batch.requestId} showStatus />
               <p className="graph-action-help">Guardar añade la canción a tus guardadas. La evaluación se puede cambiar o quitar pulsando de nuevo.</p>

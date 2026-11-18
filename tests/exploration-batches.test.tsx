@@ -1,4 +1,4 @@
-﻿import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import { clickButton, createMemoryStorage, createWindowEventMock, deferred, findButtons, findHostNodes, getTextContent, jsonResponse, reactTestRuntime, type HostNode, type VElement } from "./helpers/recommendation-library-harness";
 import { buildExplorationResponse, createMultiBatchFixtures, makeSong, makeUuid } from "./fixtures/recommendation-exploration";
@@ -118,7 +118,7 @@ describe("T4 shared exploration controls and batches", () => {
       expect.objectContaining({ from: `recording:${fixtures.recommendations.rec1.id}`, to: `recording:${fixtures.recommendations.rec5.id}` }),
     ]));
     await choose("Angel", true);
-    const links = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver detalle de esta tanda");
+    const links = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver grafo de esta tanda");
     expect(links).toHaveLength(2);
     expect(links[0].props.href).toBe("/explorar");
     (links[0].props.onClick as () => void)();
@@ -126,9 +126,10 @@ describe("T4 shared exploration controls and batches", () => {
     const focusedFirst = findHostNodes(tree(), (node) => node.tag === "mock-graph")[0].props.graph as { nodes: { id: string }[] };
     expect(focusedFirst.nodes.map((node) => node.id)).toContain(`seed:${fixtures.originals[0].id}`);
     expect(checkbox("Angel").props.checked).toBe(true);
-    const globalLink = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver todas las tandas en un solo grafo");
+    const globalLink = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver grafo");
     expect(globalLink).toHaveLength(1);
     expect(globalLink[0].props.href).toBe("/explorar");
+    expect(globalLink[0].props.className).toBe("batch-graph-cta");
     (globalLink[0].props.onClick as () => void)();
     await reactTestRuntime.flush();
     expect(findHostNodes(tree(), (node) => node.tag === "mock-graph")[0].props.graph).toEqual(graphData);
@@ -165,6 +166,54 @@ describe("T4 shared exploration controls and batches", () => {
     expect(text()).toContain("Tanda 3");
   });
 
+  it("allows collapsing and expanding individual batches as well as all batches", async () => {
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
+    const guest = createMultiBatchFixtures("guest");
+    let call = 0;
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse(++call === 1 ? guest.responses.batch1 : guest.responses.batch2))
+    );
+
+    await mount(<App screen="demo" />);
+    clickButton(button("Iniciar desde Mi lista"));
+    await reactTestRuntime.flush();
+    await choose("Glory Box", true);
+    clickButton(button("Ampliar con 1 canción"));
+    await reactTestRuntime.flush();
+
+    expect(text()).toContain("Angel");
+    expect(text()).toContain("Tezeta");
+
+    // Collapse only Tanda 1 while keeping Tanda 2 open
+    clickButton(button("Contraer Tanda 1"));
+    await reactTestRuntime.flush();
+    expect(button("Expandir Tanda 1").props["aria-expanded"]).toBe(false);
+    expect(text()).toContain("Tanda 1");
+    expect(text()).toContain("Basada en:");
+    expect(text()).not.toContain("Guardar o evaluar Angel");
+    expect(text()).toContain("Tezeta");
+
+    // Re-expand Tanda 1
+    clickButton(button("Expandir Tanda 1"));
+    await reactTestRuntime.flush();
+    expect(button("Contraer Tanda 1").props["aria-expanded"]).toBe(true);
+    expect(text()).toContain("Angel");
+
+    // Collapse all and expand all
+    clickButton(button("Contraer todas"));
+    await reactTestRuntime.flush();
+    expect(button("Expandir todas").props["aria-pressed"]).toBe(true);
+    expect(button("Expandir Tanda 1").props["aria-expanded"]).toBe(false);
+    expect(button("Expandir Tanda 2").props["aria-expanded"]).toBe(false);
+    expect(text()).not.toContain("Tezeta");
+
+    clickButton(button("Expandir todas"));
+    await reactTestRuntime.flush();
+    expect(button("Contraer todas").props["aria-pressed"]).toBe(false);
+    expect(text()).toContain("Angel");
+    expect(text()).toContain("Tezeta");
+  });
+
   it("limits selection to ten while allowing a selected song to be removed", async () => {
     useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
     const seed = fixtures.originals[0];
@@ -180,7 +229,7 @@ describe("T4 shared exploration controls and batches", () => {
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
     await choose(songs[0].title, true);
-    clickButton(button("Ampliar con 1 canci\u00f3n"));
+    clickButton(button("Ampliar con 1 canción"));
     await reactTestRuntime.flush();
     for (const song of songs.slice(0, 10)) await choose(song.title, true);
     expect(checkbox(songs[10].title).props.disabled).toBe(true);
@@ -211,7 +260,7 @@ describe("T4 shared exploration controls and batches", () => {
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
     await choose("Glory Box", true);
-    clickButton(button("Ampliar con 1 canci\u00f3n"));
+    clickButton(button("Ampliar con 1 canción"));
     await reactTestRuntime.flush();
     expect(requests[1].seeds).toEqual([guest.recommendations.rec1.id]);
     const message = outcome === "error" ? "Expansion failed" : "No encontramos canciones nuevas en esta consulta.";

@@ -5,6 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["app"]
 }
 
 model User {
@@ -17,4 +18,213 @@ model User {
   deletedAt      DateTime? @db.Timestamptz(3)
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+
+  preferences            UserPreferences?
+  favoriteRecordings     UserFavoriteRecording[]
+  favoriteArtists        UserFavoriteArtist[]
+  playlists              Playlist[]
+  recommendationRequests RecommendationRequest[]
+  recommendationEvents   RecommendationEvent[]
+  feedback               UserFeedback[]
+
+  @@map("users")
+  @@schema("app")
+}
+
+model UserPreferences {
+  userId    String   @id
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+  @@schema("app")
+}
+
+model UserFavoriteRecording {
+  id          String   @id @default(uuid())
+  userId      String
+  recordingId String   @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recordingId])
+  @@map("user_favorite_recording")
+  @@schema("app")
+}
+
+model UserFavoriteArtist {
+  id        String   @id @default(uuid())
+  userId    String
+  artistId  String   @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, artistId])
+  @@map("user_favorite_artist")
+  @@schema("app")
+}
+
+model Playlist {
+  id          String          @id @default(uuid())
+  userId      String
+  name        String          @db.VarChar(200)
+  description String?
+  createdAt   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime        @updatedAt @db.Timestamptz(3)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tracks      PlaylistTrack[]
+
+  @@index([userId, createdAt])
+  @@map("playlist")
+  @@schema("app")
+}
+
+model PlaylistTrack {
+  id          String   @id @default(uuid())
+  playlistId  String
+  recordingId String   @db.Uuid
+  position    Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  playlist    Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, recordingId])
+  @@unique([playlistId, position])
+  @@map("playlist_track")
+  @@schema("app")
+}
+
+model RecommendationModel {
+  id         String                  @id @default(uuid())
+  name       String                  @db.VarChar(100)
+  version    String                  @db.VarChar(50)
+  parameters Json                    @default("{}")
+  active     Boolean                 @default(true)
+  createdAt  DateTime                @default(now()) @db.Timestamptz(3)
+  requests   RecommendationRequest[]
+
+  @@unique([name, version])
+  @@map("recommendation_model")
+  @@schema("app")
+}
+
+enum RecommendationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+
+  @@schema("app")
+}
+
+model RecommendationRequest {
+  id          String                     @id @default(uuid())
+  userId      String
+  modelId     String
+  status      RecommendationStatus       @default(PENDING)
+  parameters  Json                       @default("{}")
+  createdAt   DateTime                   @default(now()) @db.Timestamptz(3)
+  completedAt DateTime?                  @db.Timestamptz(3)
+  user        User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model       RecommendationModel        @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  seeds       RecommendationSeed[]
+  results     RecommendationResult[]
+  events      RecommendationEvent[]
+  feedback    UserFeedback[]
+  evaluations RecommendationEvaluation[]
+
+  @@unique([id, userId])
+  @@index([userId, createdAt])
+  @@index([modelId, createdAt])
+  @@map("recommendation_request")
+  @@schema("app")
+}
+
+model RecommendationSeed {
+  requestId   String
+  recordingId String                @db.Uuid
+  position    Int
+  request     RecommendationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@id([requestId, recordingId])
+  @@unique([requestId, position])
+  @@map("recommendation_seed")
+  @@schema("app")
+}
+
+model RecommendationResult {
+  id          String                @id @default(uuid())
+  requestId   String
+  recordingId String                @db.Uuid
+  rank        Int
+  score       Float
+  explanation Json                  @default("{}")
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  request     RecommendationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  events      RecommendationEvent[]
+  feedback    UserFeedback[]
+
+  @@unique([requestId, recordingId])
+  @@unique([requestId, rank])
+  @@unique([id, requestId])
+  @@map("recommendation_result")
+  @@schema("app")
+}
+
+model RecommendationEvent {
+  id        String                @id @default(uuid())
+  userId    String
+  requestId String
+  resultId  String?
+  type      String                @db.VarChar(50)
+  metadata  Json                  @default("{}")
+  createdAt DateTime              @default(now()) @db.Timestamptz(3)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request   RecommendationRequest @relation(fields: [requestId, userId], references: [id, userId], onDelete: Cascade)
+  result    RecommendationResult? @relation(fields: [resultId, requestId], references: [id, requestId], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@index([resultId, requestId])
+  @@index([userId, createdAt])
+  @@map("recommendation_event")
+  @@schema("app")
+}
+
+enum FeedbackValue {
+  LIKE
+  DISLIKE
+
+  @@schema("app")
+}
+
+model UserFeedback {
+  id        String                @id @default(uuid())
+  userId    String
+  requestId String
+  resultId  String
+  value     FeedbackValue
+  comment   String?
+  createdAt DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime              @updatedAt @db.Timestamptz(3)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  request   RecommendationRequest @relation(fields: [requestId, userId], references: [id, userId], onDelete: Cascade)
+  result    RecommendationResult  @relation(fields: [resultId, requestId], references: [id, requestId], onDelete: Cascade)
+
+  @@unique([userId, resultId])
+  @@index([requestId, userId])
+  @@index([resultId, requestId])
+  @@map("user_feedback")
+  @@schema("app")
+}
+
+model RecommendationEvaluation {
+  id        String                @id @default(uuid())
+  requestId String
+  metrics   Json
+  createdAt DateTime              @default(now()) @db.Timestamptz(3)
+  request   RecommendationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@map("recommendation_evaluation")
+  @@schema("app")
 }

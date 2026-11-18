@@ -2,6 +2,8 @@
 
 Clerk administra las cuentas OAuth y las sesiones. PostgreSQL guarda el perfil de la aplicación; no almacena contraseñas ni tokens.
 
+El modelo Prisma `User` corresponde a `app.users`. La migración `20261112194500_create_app_tables` traslada la tabla anterior `public."User"` sin borrar ni regenerar perfiles. Después de aplicar las migraciones, genera el cliente Prisma y reinicia los procesos de Next.js que sigan ejecutándose para que utilicen el nuevo esquema. La consulta SQL de sincronización apunta explícitamente a `app.users`.
+
 ## Configuración local
 
 Requiere Node.js 20.19+, 22.12+ o 24+ y PostgreSQL. En PowerShell, usa `npm.cmd` y `npx.cmd` si la política de ejecución bloquea los archivos `.ps1`.

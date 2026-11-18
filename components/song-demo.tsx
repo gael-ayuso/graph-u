@@ -3,55 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import type { Song } from "@/lib/musicbrainz-types";
+import { SavedRecommendationsPanel } from "@/components/recommendation-library";
+import { ExplorationControls, ExplorationBatches } from "@/components/exploration-batches";
 
-const STORAGE_KEY = "graphu.demo.songs.v1";
-const CHANGE_EVENT = "graphu-song-list-change";
-let temporaryList: string | null = null;
-
-function snapshot() {
-  if (temporaryList !== null) return temporaryList;
-  try { return window.localStorage.getItem(STORAGE_KEY) || "[]"; }
-  catch { return "[]"; }
-}
-
-function subscribe(callback: () => void) {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key === STORAGE_KEY || event.key === null) { temporaryList = null; callback(); }
-  };
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(CHANGE_EVENT, callback);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(CHANGE_EVENT, callback);
-  };
-}
-
-function readSongs(raw: string): Song[] {
-  try {
-    const data: unknown = JSON.parse(raw);
-    if (!Array.isArray(data)) return [];
-    const seen = new Set<string>();
-    return data.filter((song): song is Song => {
-      if (!song || typeof song.id !== "string" || !/^[a-f0-9-]{36}$/i.test(song.id)
-        || typeof song.title !== "string" || typeof song.artist !== "string"
-        || !(song.release === null || typeof song.release === "string")
-        || !(song.comment === null || typeof song.comment === "string")
-        || !(song.duration === null || (typeof song.duration === "number" && Number.isFinite(song.duration)))
-        || seen.has(song.id)) return false;
-      seen.add(song.id);
-      return true;
-    });
-  } catch { return []; }
-}
-
-function writeSongs(songs: Song[]) {
-  const raw = JSON.stringify(songs);
-  let persisted = true;
-  try { window.localStorage.setItem(STORAGE_KEY, raw); temporaryList = null; }
-  catch { temporaryList = raw; persisted = false; }
-  window.dispatchEvent(new Event(CHANGE_EVENT));
-  return persisted;
-}
+export { snapshot, subscribe, readSongs } from "@/lib/saved-song-list";
+import { snapshot, subscribe, readSongs, writeSongs } from "@/lib/saved-song-list";
 
 function duration(milliseconds: number | null) {
   if (!milliseconds) return "—";
@@ -72,7 +28,6 @@ export function SongDemo() {
   const rawList = useSyncExternalStore(subscribe, snapshot, () => "[]");
   const saved = useMemo(() => readSongs(rawList), [rawList]);
   const savedIds = useMemo(() => new Set(saved.map((song) => song.id)), [saved]);
-
   useEffect(() => () => { controller.current?.abort(); }, []);
 
   async function search(event: FormEvent<HTMLFormElement>) {
@@ -126,7 +81,7 @@ export function SongDemo() {
       {error && <p className="demo-error" role="alert">{error}</p>}
       <div className="song-workspace">
         <section className="song-panel" aria-labelledby="results-title" aria-busy={loading}>
-          <div className="song-panel-header"><h2 id="results-title">Resultados</h2><span>{searched ? `${results.length} ${results.length === 1 ? "canción" : "canciones"}` : "MusicBrainz local"}</span></div>
+          <div className="song-panel-header"><h2 id="results-title">Resultados</h2><span>{searched ? `${results.length} ${results.length === 1 ? "canción" : "canciones"}` : "MusicBrainz"}</span></div>
           <p className="sr-only" role="status">{loading ? "Buscando canciones en MusicBrainz." : searched ? `${results.length} ${results.length === 1 ? "canción encontrada" : "canciones encontradas"}.` : ""}</p>
           {loading ? <p className="song-empty">Buscando en MusicBrainz…</p> : results.length ? (
             <ul className="song-results">
@@ -144,12 +99,17 @@ export function SongDemo() {
         <section className="song-panel saved-panel" aria-labelledby="saved-title">
           <div className="song-panel-header"><h2 id="saved-title">Mi lista</h2><span>{saved.length}</span></div>
           <p className="list-note">{temporary ? "La lista se mantiene solo en esta pestaña: el almacenamiento del navegador no está disponible." : "Se guarda en este navegador, sin iniciar sesión."}</p>
+          {saved.length > 10 && <p className="list-note">Las recomendaciones usan las primeras 10 canciones de tu lista. Las demás no participan en esta tanda.</p>}
           {saved.length ? <ol className="saved-songs">{saved.map((song, index) => (
             <li className="saved-song" key={song.id}><span className="saved-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><div className="song-info"><span className="song-title">{song.title}</span><p>{song.artist}</p></div><button type="button" className="remove-song" onClick={() => removeSong(song)} aria-label={`Quitar ${song.title} de mi lista`}>Quitar</button></li>
           ))}</ol> : <p className="song-empty">Tu lista está vacía.<br />Pulsa «Añadir» junto a una canción.</p>}
+
           <p className="sr-only" role="status">{notice}</p>
         </section>
       </div>
+      <ExplorationControls saved={saved} />
+      <ExplorationBatches />
+      <SavedRecommendationsPanel />
     </>
   );
 }

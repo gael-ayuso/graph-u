@@ -70,3 +70,8 @@ next-env.d.ts
 
 # graphify
 /graphify-out/
+
+# python backend
+/backend/.venv/
+__pycache__/
+

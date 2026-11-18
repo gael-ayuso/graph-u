@@ -6,6 +6,8 @@ import { Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { ProfileSync } from "@/components/profile-sync";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { RecommendationLibraryProvider } from "@/components/recommendation-library";
+import { RecommendationExplorationProvider } from "@/components/recommendation-exploration-provider";
 import "./globals.css";
 import "./gruvbox.css";
 
@@ -64,7 +66,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={null}>
               <ProfileSync />
             </Suspense>
-            {children}
+            <RecommendationLibraryProvider>
+              <RecommendationExplorationProvider>
+                {children}
+              </RecommendationExplorationProvider>
+            </RecommendationLibraryProvider>
           </QueryProvider>
         </ClerkProvider>
       </body>

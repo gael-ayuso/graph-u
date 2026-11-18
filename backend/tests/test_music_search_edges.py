@@ -21,6 +21,8 @@ from app.music_search import (
 from app import musicbrainz as mb
 from app import musicbrainz_db as db
 
+RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
+
 
 def _song(song_id: str, title: str, artist: str) -> dict:
     return {
@@ -195,8 +197,8 @@ def test_public_skips_fuzzy_when_artist_has_no_words(monkeypatch):
 @pytest.mark.parametrize(
     ("title", "artist", "expected_exact", "expected_fuzzy"),
     [
-        ("Rekoner", "", 'recording:"Rekoner"', "recording:(rekoner~)"),
-        ("", "Radiohed", 'artist:"Radiohed"', "artist:(radiohed~)"),
+        ("Rekoner", "", f'recording:"Rekoner" AND {RELEASE_FILTER}', f"recording:(rekoner~) AND {RELEASE_FILTER}"),
+        ("", "Radiohed", f'artist:"Radiohed" AND {RELEASE_FILTER}', f"artist:(radiohed~) AND {RELEASE_FILTER}"),
     ],
 )
 def test_public_single_field_fuzzy_query(monkeypatch, title, artist, expected_exact, expected_fuzzy):
@@ -376,6 +378,8 @@ def test_local_fuzzy_mixed_short_artist_and_long_title_with_set_config_local(fak
     assert artist_params == {"artist": "U2", "limit": 400}
     assert "OPERATOR(public.<%%)" in rec_sql
     assert "r.artist_credit = ANY(%(artist_ids)s::integer[])" in rec_sql
+    assert "rel.status = 1" in rec_sql
+    assert "rg.type IN (1, 2, 3)" in rec_sql
     assert rec_params["artist_ids"] == [11]
 
 
@@ -397,6 +401,8 @@ def test_local_fuzzy_title_only_skips_artist_credit_lookup(fake_db):
     songs = db.search("local", "Rekoner", "")
     assert len(songs) == 1
     assert "artist_ids" not in conn.calls[3][1]
+    assert "rel.status = 1" in conn.calls[3][0]
+    assert "rg.type IN (1, 2, 3)" in conn.calls[3][0]
     assert conn.calls[3][2] == 1
     assert conn.calls[4][2] == 0
 

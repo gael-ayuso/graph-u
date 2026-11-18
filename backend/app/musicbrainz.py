@@ -38,6 +38,10 @@ API = "https://musicbrainz.org/ws/2"
 USER_AGENT = _env("MUSICBRAINZ_USER_AGENT") or "GraphU/0.1 (proyecto academico)"
 LASTFM_API_KEY = _env("LASTFM_API_KEY")
 
+_ALLOWED_RELEASE_STATUS = "official"
+_ALLOWED_RELEASE_TYPES = frozenset({"single", "ep", "album"})
+_SEARCH_RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
+
 _client = httpx.Client(base_url=API, headers={"User-Agent": USER_AGENT}, timeout=8)
 _lock = threading.Lock()
 _last_request = 0.0
@@ -151,22 +155,53 @@ def _tags(entity: dict) -> dict[str, int]:
     return {t["name"]: t["count"] for t in entity.get("tags") or [] if t["count"] > 0}
 
 
+def _release_matches(release: dict) -> bool:
+    status = (release.get("status") or "").casefold()
+    primary_type = ((release.get("release-group") or {}).get("primary-type") or "").casefold()
+    return status == _ALLOWED_RELEASE_STATUS and primary_type in _ALLOWED_RELEASE_TYPES
+
+
+def _has_release_metadata(releases: list[dict]) -> bool:
+    return any("status" in release or "release-group" in release for release in releases)
+
+
+def _allowed_api_recording(recording: dict) -> bool:
+    releases = recording.get("releases") or []
+    if not _has_release_metadata(releases):
+        return True
+    return any(_release_matches(release) for release in releases)
+
+
 def _song(recording: dict) -> dict:
     credit = "".join(c["name"] + c.get("joinphrase", "") for c in recording.get("artist-credit", []))
     releases = recording.get("releases") or []
-    return {
+    preferred = next((release for release in releases if _release_matches(release)), None)
+    if preferred is None and releases and not _has_release_metadata(releases):
+        preferred = releases[0]
+    song = {
         "id": recording["id"],
         "title": recording["title"],
         "artist": credit,
-        "release": releases[0]["title"] if releases else None,
+        "release": preferred["title"] if preferred else None,
         "duration": recording.get("length"),
         "comment": recording.get("disambiguation") or None,
     }
+    if preferred:
+        release_id = preferred.get("id")
+        release_group_id = (preferred.get("release-group") or {}).get("id")
+        if release_id:
+            song["releaseMbid"] = release_id
+        if release_group_id:
+            song["releaseGroupMbid"] = release_group_id
+    return song
 
 
 def _search_api(title: str, artist: str) -> list[dict]:
-    query = " AND ".join(f"{field}:{_quote(value)}" for field, value in (("recording", title), ("artist", artist)) if value)
-    songs = [_song(r) for r in _get("/recording", query=query, limit=20)["recordings"]]
+    terms = " AND ".join(f"{field}:{_quote(value)}" for field, value in (("recording", title), ("artist", artist)) if value)
+    if not terms:
+        return []
+    query = f"{terms} AND {_SEARCH_RELEASE_FILTER}"
+    songs = [_song(r) for r in _get("/recording", query=query, limit=20)["recordings"] if _allowed_api_recording(r)]
     if songs or not can_fuzz(title, artist):
         return songs
     query = fuzzy_query(title, artist)
@@ -174,7 +209,11 @@ def _search_api(title: str, artist: str) -> list[dict]:
         return []
     # MusicBrainz caps a single response at 100; don't paginate/retry broader
     # queries. _get retains the existing rate limiting and error semantics.
-    candidates = [_song(r) for r in _get("/recording", query=query, limit=100)["recordings"]]
+    candidates = [
+        _song(r)
+        for r in _get("/recording", query=f"{query} AND {_SEARCH_RELEASE_FILTER}", limit=100)["recordings"]
+        if _allowed_api_recording(r)
+    ]
     return rank_candidates(candidates, title, artist)
 
 
@@ -191,7 +230,7 @@ def _artist_tags(mbid: str) -> dict[str, int]:
 
 
 def _recording_profile_api(mbid: str) -> tuple[dict, dict[str, int], str | None]:
-    recording = _get(f"/recording/{mbid}", inc="artist-credits+tags")
+    recording = _get(f"/recording/{mbid}", inc="artist-credits+tags+releases")
     tags = _tags(recording)
     credits = recording.get("artist-credit", [])
     artist_id = credits[0]["artist"]["id"] if credits else None

@@ -18,6 +18,7 @@ SONG_ID = "d9b46ecb-5472-4dcd-8fa4-dd6723189e27"
 ROW = (UUID(SONG_ID), "Reckoner", "Radiohead", None, 290000, None)
 SONG = dict(zip(("id", "title", "artist", "release", "duration", "comment"), (SONG_ID, *ROW[1:])))
 RECORDING = {"id": SONG_ID, "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}]}
+RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
 
 
 @pytest.mark.parametrize("title,artist", [
@@ -74,7 +75,7 @@ def test_ranking_is_stable_deduplicates_and_caps_results():
 def test_lucene_query_uses_only_words_and_controlled_operators():
     assert fuzzy_query("Rekoner", "Radiohed") == "recording:(rekoner~) AND artist:(radiohed~)"
     assert fuzzy_query("go on", "") == 'recording:("go" AND "on")'
-    query = fuzzy_query('Rekoner\" OR artist:* +foo~ (bar) \\baz', "AC/DC")
+    query = fuzzy_query('Rekoner\\" OR artist:* +foo~ (bar) \\\\baz', "AC/DC")
     assert query == 'recording:(rekoner~ AND "or" AND artist~ AND "foo" AND "bar" AND "baz") AND artist:("ac" AND "dc")'
     assert fuzzy_query("***", "Radiohead") == ""
     assert not can_fuzz("go on", "U2")
@@ -95,7 +96,7 @@ def test_public_exact_results_are_unchanged(monkeypatch):
 
     monkeypatch.setattr(mb, "_get", get)
     assert mb._search_api("Reckoner", "Radiohead")[0]["id"] == SONG_ID
-    assert calls == [{"query": 'recording:"Reckoner" AND artist:"Radiohead"', "limit": 20}]
+    assert calls == [{"query": f'recording:"Reckoner" AND artist:"Radiohead" AND {RELEASE_FILTER}', "limit": 20}]
 
 
 def test_public_fuzzy_search_runs_once_and_filters_candidates(monkeypatch):
@@ -113,7 +114,42 @@ def test_public_fuzzy_search_runs_once_and_filters_candidates(monkeypatch):
     monkeypatch.setattr(mb, "_get", get)
     assert [song["id"] for song in mb._search_api("Rekoner", "Radiohed")] == [SONG_ID]
     assert len(calls) == 2
-    assert calls[1] == {"query": "recording:(rekoner~) AND artist:(radiohed~)", "limit": 100}
+    assert calls[1] == {"query": f"recording:(rekoner~) AND artist:(radiohed~) AND {RELEASE_FILTER}", "limit": 100}
+
+
+def test_public_filters_non_official_and_non_single_ep_album_releases(monkeypatch):
+    def release(title, status, primary_type):
+        return {"title": title, "status": status, "release-group": {"primary-type": primary_type}}
+
+    monkeypatch.setattr(mb, "_get", lambda path, **params: {"recordings": [
+        {
+            **RECORDING,
+            "id": "bootleg-only",
+            "releases": [release("Live Bootleg", "Bootleg", "Album"), release("Official Broadcast", "Official", "Broadcast")],
+        },
+        {
+            **RECORDING,
+            "id": "official-single",
+            "releases": [release("Bootleg First", "Bootleg", "Album"), release("Nude Single", "Official", "Single")],
+        },
+        {
+            **RECORDING,
+            "id": "official-ep",
+            "releases": [release("Com Lag", "Official", "EP")],
+        },
+        {
+            **RECORDING,
+            "id": "official-album",
+            "releases": [release("In Rainbows", "Official", "Album")],
+        },
+    ]})
+
+    songs = mb._search_api("Reckoner", "Radiohead")
+    assert [(song["id"], song["release"]) for song in songs] == [
+        ("official-single", "Nude Single"),
+        ("official-ep", "Com Lag"),
+        ("official-album", "In Rainbows"),
+    ]
 
 
 def test_public_empty_fuzzy_results_do_not_cascade(monkeypatch):
@@ -187,10 +223,14 @@ def local_connection(monkeypatch):
     return connect
 
 
-def test_local_exact_does_not_check_or_run_fuzzy(local_connection):
+def test_local_exact_does_not_check_or_run_fuzzy_and_filters_official_releases(local_connection):
     conn = local_connection([[ROW]])
     assert db.search("local", "Reckoner", "Radiohead") == [SONG]
     assert len(conn.calls) == 1
+    exact_sql = conn.calls[0][0]
+    assert "rel.status = 1" in exact_sql
+    assert "rg.type IN (1, 2, 3)" in exact_sql
+    assert exact_sql.count("JOIN musicbrainz.release_group rg ON rg.id = rel.release_group") == 2
 
 
 def test_missing_extension_or_indexes_keeps_local_source(local_connection, monkeypatch):
@@ -214,6 +254,10 @@ def test_local_fuzzy_enriches_only_accepted_results_and_scopes_threshold(local_c
     assert songs == [{**SONG, "release": "In Rainbows"}]
     assert conn.calls[-1][1] == ([SONG_ID],)
     assert conn.calls[-1][2] == 0
+    assert "rel.status = 1" in conn.calls[4][0]
+    assert "rg.type IN (1, 2, 3)" in conn.calls[4][0]
+    assert "rel.status = 1" in conn.calls[-1][0]
+    assert "rg.type IN (1, 2, 3)" in conn.calls[-1][0]
     assert conn.calls[2][2] == conn.calls[3][2] == conn.calls[4][2] == 1
     assert conn.calls[4][1]["artist_ids"] == [1]
     assert conn.transaction_depth == 0

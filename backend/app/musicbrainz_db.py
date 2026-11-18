@@ -26,6 +26,21 @@ _CONNECT_TIMEOUT = 2
 _STATEMENT_TIMEOUT_MS = 8000
 _thread_local = threading.local()
 
+# release_status: 1 = Official
+# release_group_primary_type: 1 = Album, 2 = Single, 3 = EP
+_OFFICIAL_RELEASE_EXISTS = """
+    EXISTS (
+        SELECT 1
+        FROM musicbrainz.track tr
+        JOIN musicbrainz.medium m ON m.id = tr.medium
+        JOIN musicbrainz.release rel ON rel.id = m.release
+        JOIN musicbrainz.release_group rg ON rg.id = rel.release_group
+        WHERE tr.recording = r.id
+          AND rel.status = 1
+          AND rg.type IN (1, 2, 3)
+    )
+""".strip()
+
 
 def _connection(dsn: str) -> psycopg.Connection:
     conn: psycopg.Connection | None = getattr(_thread_local, "conn", None)
@@ -73,8 +88,17 @@ def is_active(dsn: str) -> bool:
         return False
 
 
-def _song_row(gid: UUID, title: str, artist: str, release: str | None, duration: int | None, comment: str | None) -> dict:
-    return {
+def _song_row(
+    gid: UUID,
+    title: str,
+    artist: str,
+    release: str | None,
+    duration: int | None,
+    comment: str | None,
+    release_mbid: UUID | str | None = None,
+    release_group_mbid: UUID | str | None = None,
+) -> dict:
+    song = {
         "id": str(gid),
         "title": title,
         "artist": artist,
@@ -82,6 +106,11 @@ def _song_row(gid: UUID, title: str, artist: str, release: str | None, duration:
         "duration": duration,
         "comment": comment or None,
     }
+    if release_mbid is not None:
+        song["releaseMbid"] = str(release_mbid)
+    if release_group_mbid is not None:
+        song["releaseGroupMbid"] = str(release_group_mbid)
+    return song
 
 
 def search(dsn: str, title: str, artist: str) -> list[dict]:
@@ -99,6 +128,7 @@ def search(dsn: str, title: str, artist: str) -> list[dict]:
         params.append(artist)
     if not clauses:
         return []
+    clauses.append(_OFFICIAL_RELEASE_EXISTS)
 
     order_parts: list[str] = []
     if title:
@@ -134,18 +164,29 @@ def search(dsn: str, title: str, artist: str) -> list[dict]:
             rk.gid,
             rk.name,
             rk.artist,
-            (
-                SELECT rel.name
-                FROM musicbrainz.track tr
-                JOIN musicbrainz.medium m ON m.id = tr.medium
-                JOIN musicbrainz.release rel ON rel.id = m.release
-                WHERE tr.recording = rk.id
-                ORDER BY (rel.status = 1) DESC NULLS LAST, rel.id
-                LIMIT 1
-            ) AS release_name,
+            rel_pick.release_name,
             rk.length,
-            rk.comment
+            rk.comment,
+            rel_pick.release_gid,
+            rel_pick.rg_gid
         FROM ranked rk
+        LEFT JOIN LATERAL (
+            SELECT
+                rel.name AS release_name,
+                CASE WHEN cat.id IS NOT NULL THEN rel.gid ELSE NULL END AS release_gid,
+                CASE WHEN cat.id IS NOT NULL THEN rg.gid ELSE NULL END AS rg_gid
+            FROM musicbrainz.track tr
+            JOIN musicbrainz.medium m ON m.id = tr.medium
+            JOIN musicbrainz.release rel ON rel.id = m.release
+            JOIN musicbrainz.release_group rg ON rg.id = rel.release_group
+            LEFT JOIN cover_art_archive.cover_art ca ON ca.release = rel.id
+            LEFT JOIN cover_art_archive.cover_art_type cat ON cat.id = ca.id AND cat.type_id = 1
+            WHERE tr.recording = rk.id
+              AND rel.status = 1
+              AND rg.type IN (1, 2, 3)
+            ORDER BY (cat.id IS NOT NULL) DESC, (rg.type = 1) DESC, ca.ordering ASC NULLS LAST, rel.id ASC
+            LIMIT 1
+        ) rel_pick ON true
     """
     try:
         conn = _connection(dsn)
@@ -219,6 +260,7 @@ def _search_fuzzy(conn: psycopg.Connection, title: str, artist: str) -> list[dic
                 f"plainto_tsquery('musicbrainz.mb_simple', musicbrainz.mb_lower(%({key})s))"
             )
             scores.append("1.0")
+    clauses.append(_OFFICIAL_RELEASE_EXISTS)
     sql = f"""
         SELECT r.gid, r.name, ac.name, NULL, r.length, NULLIF(r.comment, '')
         FROM musicbrainz.recording r
@@ -261,16 +303,34 @@ def _search_fuzzy(conn: psycopg.Connection, title: str, artist: str) -> list[dic
     # fuzzy candidates. Preserve the Python ranking when the rows come back.
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT r.gid, r.name, ac.name,
-                (SELECT rel.name
-                 FROM musicbrainz.track tr
-                 JOIN musicbrainz.medium m ON m.id = tr.medium
-                 JOIN musicbrainz.release rel ON rel.id = m.release
-                 WHERE tr.recording = r.id
-                 ORDER BY (rel.status = 1) DESC NULLS LAST, rel.id LIMIT 1),
-                r.length, NULLIF(r.comment, '')
+            SELECT
+                r.gid,
+                r.name,
+                ac.name,
+                rel_pick.release_name,
+                r.length,
+                NULLIF(r.comment, ''),
+                rel_pick.release_gid,
+                rel_pick.rg_gid
             FROM musicbrainz.recording r
             JOIN musicbrainz.artist_credit ac ON ac.id = r.artist_credit
+            LEFT JOIN LATERAL (
+                SELECT
+                    rel.name AS release_name,
+                    CASE WHEN cat.id IS NOT NULL THEN rel.gid ELSE NULL END AS release_gid,
+                    CASE WHEN cat.id IS NOT NULL THEN rg.gid ELSE NULL END AS rg_gid
+                FROM musicbrainz.track tr
+                JOIN musicbrainz.medium m ON m.id = tr.medium
+                JOIN musicbrainz.release rel ON rel.id = m.release
+                JOIN musicbrainz.release_group rg ON rg.id = rel.release_group
+                LEFT JOIN cover_art_archive.cover_art ca ON ca.release = rel.id
+                LEFT JOIN cover_art_archive.cover_art_type cat ON cat.id = ca.id AND cat.type_id = 1
+                WHERE tr.recording = r.id
+                  AND rel.status = 1
+                  AND rg.type IN (1, 2, 3)
+                ORDER BY (cat.id IS NOT NULL) DESC, (rg.type = 1) DESC, ca.ordering ASC NULLS LAST, rel.id ASC
+                LIMIT 1
+            ) rel_pick ON true
             WHERE r.gid = ANY(%s::uuid[])
         """, ([song["id"] for song in selected],))
         enriched = {song["id"]: song for song in (_song_row(*row) for row in cur.fetchall())}
@@ -322,7 +382,10 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
             rec.length,
             rec.comment,
             pa.id AS primary_artist_id,
-            pa.gid AS primary_artist_gid
+            pa.gid AS primary_artist_gid,
+            rel_pick.release_name,
+            rel_pick.release_gid,
+            rel_pick.rg_gid
         FROM rec
         JOIN musicbrainz.artist_credit ac ON ac.id = rec.artist_credit
         LEFT JOIN LATERAL (
@@ -333,6 +396,21 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
             ORDER BY acn.position ASC
             LIMIT 1
         ) pa ON true
+        LEFT JOIN LATERAL (
+            SELECT
+                rel.name AS release_name,
+                CASE WHEN cat.id IS NOT NULL THEN rel.gid ELSE NULL END AS release_gid,
+                CASE WHEN cat.id IS NOT NULL THEN rg.gid ELSE NULL END AS rg_gid
+            FROM musicbrainz.track tr
+            JOIN musicbrainz.medium m ON m.id = tr.medium
+            JOIN musicbrainz.release rel ON rel.id = m.release
+            JOIN musicbrainz.release_group rg ON rg.id = rel.release_group
+            LEFT JOIN cover_art_archive.cover_art ca ON ca.release = rel.id
+            LEFT JOIN cover_art_archive.cover_art_type cat ON cat.id = ca.id AND cat.type_id = 1
+            WHERE tr.recording = rec.id
+            ORDER BY (cat.id IS NOT NULL) DESC, (rel.status = 1) DESC, (rg.type = 1) DESC, ca.ordering ASC NULLS LAST, rel.id ASC
+            LIMIT 1
+        ) rel_pick ON true
     """
     try:
         conn = _connection(dsn)
@@ -341,7 +419,8 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
             row = cur.fetchone()
             if not row:
                 return None
-            rec_id, rec_gid, title, artist_name, duration, comment, artist_internal_id, artist_gid = row
+            rec_id, rec_gid, title, artist_name, duration, comment, artist_internal_id, artist_gid, *rel_info = row
+            release_name, release_gid, rg_gid = (rel_info + [None, None, None])[:3]
 
             tags: dict[str, int] = {}
             cur.execute(
@@ -369,7 +448,7 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
                 for tag_name, count in cur.fetchall():
                     tags[tag_name] = tags.get(tag_name, 0) + count
 
-        song = _song_row(rec_gid, title, artist_name, None, duration, comment)
+        song = _song_row(rec_gid, title, artist_name, release_name, duration, comment, release_gid, rg_gid)
         return song, tags, str(artist_gid) if artist_gid else None
     except psycopg.Error:
         reset_connection()
@@ -437,7 +516,7 @@ def album_tracks(dsn: str, artist_id: str) -> list[dict]:
             LIMIT 1
         ),
         rg AS (
-            SELECT DISTINCT rg.id
+            SELECT DISTINCT rg.id, rg.gid
             FROM a
             JOIN musicbrainz.artist_credit_name acn ON acn.artist = a.id
             JOIN musicbrainz.release_group rg ON rg.artist_credit = acn.artist_credit
@@ -446,14 +525,28 @@ def album_tracks(dsn: str, artist_id: str) -> list[dict]:
             LIMIT 20
         ),
         rels AS (
-            SELECT DISTINCT ON (rg.id) rel.id, rel.name
+            SELECT DISTINCT ON (rg.id)
+                rel.id,
+                rel.name,
+                CASE WHEN cat.id IS NOT NULL THEN rel.gid ELSE NULL END AS release_gid,
+                CASE WHEN cat.id IS NOT NULL THEN rg.gid ELSE NULL END AS rg_gid
             FROM rg
             JOIN musicbrainz.release rel ON rel.release_group = rg.id
+            LEFT JOIN cover_art_archive.cover_art ca ON ca.release = rel.id
+            LEFT JOIN cover_art_archive.cover_art_type cat ON cat.id = ca.id AND cat.type_id = 1
             WHERE rel.status = 1
               AND rel.comment NOT ILIKE '%%live%%'
-            ORDER BY rg.id, rel.id
+            ORDER BY rg.id, (cat.id IS NOT NULL) DESC, ca.ordering ASC NULLS LAST, rel.id
         )
-        SELECT r.gid, r.name, ac.name AS artist, rels.name AS release_name, r.length, NULLIF(r.comment, '') AS comment
+        SELECT
+            r.gid,
+            r.name,
+            ac.name AS artist,
+            rels.name AS release_name,
+            r.length,
+            NULLIF(r.comment, '') AS comment,
+            rels.release_gid,
+            rels.rg_gid
         FROM rels
         JOIN musicbrainz.medium m ON m.release = rels.id
         JOIN musicbrainz.track tr ON tr.medium = m.id

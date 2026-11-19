@@ -2,18 +2,21 @@
 
 import psycopg
 import pytest
+from conftest import artist_dict, song_dict, uid
 
-from test_recommendations import artist_dict, client, isolate_external_sources, song_dict, uid
 from app import main
 from app import musicbrainz as mb
 from app.content import explicit_metadata
 
+# isolate_external_sources reemplaza mb.recording_check; estas pruebas usan la función real.
+recording_check = mb.recording_check
+
 
 @pytest.fixture(autouse=True)
 def clear_content_cache():
-    mb.recording_is_explicit.cache_clear()
+    recording_check.cache_clear()
     yield
-    mb.recording_is_explicit.cache_clear()
+    recording_check.cache_clear()
 
 
 @pytest.mark.parametrize("comment,tags,expected", [
@@ -36,27 +39,28 @@ def test_public_recording_metadata_and_cache(monkeypatch):
         calls.append((path, params))
         return {"disambiguation": "", "tags": [{"name": "explicit", "count": 1}, {"name": "clean", "count": 0}]}
     monkeypatch.setattr(mb, "_get", get)
-    assert mb.recording_is_explicit(uid(1)) is True
-    assert mb.recording_is_explicit(uid(1)) is True
-    assert calls == [(f"/recording/{uid(1)}", {"inc": "tags"})]
+    # Sin lanzamientos no se puede comprobar que sea oficial.
+    assert recording_check(uid(1)) == (True, False)
+    assert recording_check(uid(1)) == (True, False)
+    assert calls == [(f"/recording/{uid(1)}", {"inc": "tags+releases+release-groups"})]
 
 
 def test_local_metadata_missing_and_db_failure_fallback(monkeypatch):
     monkeypatch.setattr(mb, "_env", lambda _: "dsn")
     monkeypatch.setattr(mb, "is_local_db_active", lambda: True)
-    monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: ("clean", []))
+    monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: ("clean", [], True))
     monkeypatch.setattr(mb, "_get", lambda *a, **k: pytest.fail("unexpected public request"))
-    assert mb.recording_is_explicit(uid(1)) is False
+    assert recording_check(uid(1)) == (False, True)
     monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: None)
     with pytest.raises(mb.MusicBrainzError) as error:
-        mb.recording_is_explicit(uid(2))
+        recording_check(uid(2))
     assert error.value.status == 404
     def broken(*args):
         raise psycopg.OperationalError("offline")
     monkeypatch.setattr(mb.mb_db, "recording_content_metadata", broken)
     monkeypatch.setattr(mb, "_mark_local_db_inactive", lambda _: None)
     monkeypatch.setattr(mb, "_get", lambda *a, **k: {"tags": [{"name": "explicit", "count": 1}]})
-    assert mb.recording_is_explicit(uid(3)) is True
+    assert recording_check(uid(3)) == (True, False)
 
 
 @pytest.fixture
@@ -75,15 +79,16 @@ def tracks(monkeypatch):
         calls.append(mid)
         if mid == uid(102):
             raise mb.MusicBrainzError("unavailable")
-        return mid == uid(103)
-    monkeypatch.setattr(mb, "recording_is_explicit", check)
+        return mid == uid(103), True
+    monkeypatch.setattr(mb, "recording_check", check)
     return calls
 
 
-def test_explicit_allowed_skips_content_queries(client, tracks):
+def test_explicit_allowed_checks_only_lastfm_releases(client, tracks):
     response = client.post("/api/recommendations", json={"seeds": [uid(1)], "discoveryMode": "conservative"})
     assert response.status_code == 200
-    assert tracks == []
+    # Las canciones de Last.fm se comprueban (lanzamiento oficial); el catálogo ya viene filtrado.
+    assert tracks == [uid(100), uid(102), uid(103)]
     assert uid(100) in [rec["song"]["id"] for rec in response.json()["recommendations"]]
 
 
@@ -110,7 +115,7 @@ def test_deadline_blocks_checks_and_marks_search_limited(monkeypatch):
     branch = {"song": song_dict(uid(1), "Seed", "Seed"), "tags": {}, "artistId": uid(10)}
     monkeypatch.setattr(main, "_candidates", lambda *a: {"artists": [(artist_dict(uid(20), "Artist"), 1.0, ["rock"], [])], "hints": {uid(20): [(1.0, song_dict(uid(100), "Song", "Artist"))]}, "byId": {}, "tracksFailed": False, "searchLimited": False})
     monkeypatch.setattr(main.time, "monotonic", lambda: 2.0)
-    monkeypatch.setattr(mb, "recording_is_explicit", lambda _: pytest.fail("lookup beyond deadline"))
+    monkeypatch.setattr(mb, "recording_check", lambda _: pytest.fail("lookup beyond deadline"))
     assert list(main._branch_queue(branch, set(), {uid(1)}, {}, 1, 1, 1.0, Random(0), allow_explicit=False)) == []
     assert branch["searchLimited"] is True
 
@@ -126,9 +131,10 @@ def assert_clean_album_variant_survives(monkeypatch, catalog):
 
 
 def test_public_album_retains_recording_versions_until_content_filter(monkeypatch):
+    album = [{"title": "Album", "status": "Official", "release-group": {"primary-type": "Album"}}]
     records = [
-        {"id": uid(100), "title": "Same Song", "disambiguation": "explicit", "artist-credit": [{"name": "Artist"}]},
-        {"id": uid(101), "title": "Same Song", "disambiguation": "clean", "artist-credit": [{"name": "Artist"}]},
+        {"id": uid(100), "title": "Same Song", "disambiguation": "explicit", "artist-credit": [{"name": "Artist"}], "releases": album},
+        {"id": uid(101), "title": "Same Song", "disambiguation": "clean", "artist-credit": [{"name": "Artist"}], "releases": album},
     ]
     calls = []
     def get(path, **kwargs):

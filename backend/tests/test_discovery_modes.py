@@ -1,12 +1,12 @@
 ﻿from random import Random
 
 import pytest
+from conftest import artist_dict, reachable_from, song_dict, uid
 
-from test_recommendations import (
-    artist_dict, client, isolate_external_sources, reachable_from, song_dict, uid,
-)
 from app import main
 from app import musicbrainz as mb
+
+pytestmark = pytest.mark.usefixtures("isolate_external_sources")
 
 
 @pytest.fixture

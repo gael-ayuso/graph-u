@@ -267,30 +267,37 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
 def _branch_queue(branch: dict, excluded: set[str], seed_ids: set[str], catalog: dict, batch_size: int, catalog_limit: int, deadline: float, rng: Random,
                   excluded_versions: set[tuple[str, str]] = frozenset(), excluded_ids: set[str] = frozenset(),
                   exploration_jitter: float = EXPLORATION_JITTER, preferred_tags: tuple[str, ...] = (),
-                  allow_explicit: bool = True, content_checks: dict[str, bool | None] | None = None):
+                  allow_explicit: bool = True, content_checks: dict[str, tuple[bool, bool] | None] | None = None):
     branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng,
                               exploration_jitter, preferred_tags))
     checks = content_checks if content_checks is not None else {}
+    # Last.fm no dice de qué disco es una canción: hay que comprobar que sea oficial (single/EP/álbum).
+    # El catálogo de álbumes ya viene filtrado por la propia consulta.
+    lastfm = {_canonical_uuid(song["id"]) for found in branch["hints"].values() for _, song in found}
 
     def track_allowed(song):
-        if explicit_metadata(song.get("comment")):
-            return False
         song_id = _canonical_uuid(song["id"])
+        if allow_explicit and song_id not in lastfm:
+            return True
+        if not allow_explicit and explicit_metadata(song.get("comment")):
+            return False
         if song_id not in checks:
             if time.monotonic() >= deadline:
                 branch["searchLimited"] = True
                 return False
             try:
-                checks[song_id] = mb.recording_is_explicit(song_id)
-            except mb.MusicBrainzError:
-                checks[song_id] = None
+                checks[song_id] = mb.recording_check(song_id)
+            except mb.MusicBrainzError as error:
+                # 404: Last.fm a veces da MBID que ya no existen; no es un fallo temporal de la fuente.
+                checks[song_id] = (False, False) if error.status == 404 else None
         if checks[song_id] is None:
             branch["tracksFailed"] = True
             return False
-        return not checks[song_id]
+        explicit, official = checks[song_id]
+        return (official or song_id not in lastfm) and (allow_explicit or not explicit)
 
     yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng,
-                           excluded_versions, exploration_jitter, track_allowed if not allow_explicit else None)
+                           excluded_versions, exploration_jitter, track_allowed)
 
 
 @app.post("/api/recommendations")

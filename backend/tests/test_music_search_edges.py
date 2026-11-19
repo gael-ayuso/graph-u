@@ -9,6 +9,8 @@ import psycopg
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app import musicbrainz as mb
+from app import musicbrainz_db as db
 from app.music_search import (
     RESULT_LIMIT,
     can_fuzz,
@@ -18,10 +20,8 @@ from app.music_search import (
     words,
 )
 
-from app import musicbrainz as mb
-from app import musicbrainz_db as db
-
 RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
+OFFICIAL = [{"title": "In Rainbows", "status": "Official", "release-group": {"primary-type": "Album"}}]
 
 
 def _song(song_id: str, title: str, artist: str) -> dict:
@@ -203,7 +203,7 @@ def test_public_skips_fuzzy_when_artist_has_no_words(monkeypatch):
 )
 def test_public_single_field_fuzzy_query(monkeypatch, title, artist, expected_exact, expected_fuzzy):
     calls = []
-    rec = {"id": "id-1", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}]}
+    rec = {"id": "id-1", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL}
 
     def fake_get(path, **params):
         calls.append(params)
@@ -213,7 +213,7 @@ def test_public_single_field_fuzzy_query(monkeypatch, title, artist, expected_ex
     songs = mb._search_api(title, artist)
     assert [s["id"] for s in songs] == ["id-1"]
     assert calls == [
-        {"query": expected_exact, "limit": 20},
+        {"query": expected_exact, "limit": 100},
         {"query": expected_fuzzy, "limit": 100},
     ]
 
@@ -227,9 +227,9 @@ def test_public_fuzzy_rejects_all_bad_candidates_without_retry_and_caps_at_20(mo
             return {"recordings": []}
         return {
             "recordings": [
-                {"id": "rev", "title": "Android Paranoid", "artist-credit": [{"name": "Radiohead"}]},
-                {"id": "short", "title": "Do On", "artist-credit": [{"name": "Radiohead"}]},
-                {"id": "far", "title": "Paranoia", "artist-credit": [{"name": "Radiohead"}]},
+                {"id": "rev", "title": "Android Paranoid", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL},
+                {"id": "short", "title": "Do On", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL},
+                {"id": "far", "title": "Paranoia", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL},
             ]
         }
 
@@ -239,10 +239,10 @@ def test_public_fuzzy_rejects_all_bad_candidates_without_retry_and_caps_at_20(mo
 
     calls.clear()
     many = [
-        {"id": f"id-{i:02d}", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}]}
+        {"id": f"id-{i:02d}", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL}
         for i in range(25)
     ]
-    best = {"id": "00-best", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}]}
+    best = {"id": "00-best", "title": "Reckoner", "artist-credit": [{"name": "Radiohead"}], "releases": OFFICIAL}
 
     def fake_get_many(path, **params):
         calls.append(params)

@@ -41,6 +41,9 @@ LASTFM_API_KEY = _env("LASTFM_API_KEY")
 
 _ALLOWED_RELEASE_STATUS = "official"
 _ALLOWED_RELEASE_TYPES = frozenset({"single", "ep", "album"})
+# Los tipos secundarios (recopilatorio, directo, banda sonora, remix, demo, DJ-mix…) se descartan
+# después en _release_matches: en Lucene, NOT secondarytype quitaría también la grabación de estudio
+# si además aparece en algún recopilatorio.
 _SEARCH_RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
 
 _client = httpx.Client(base_url=API, headers={"User-Agent": USER_AGENT}, timeout=8)
@@ -157,9 +160,11 @@ def _tags(entity: dict) -> dict[str, int]:
 
 
 def _release_matches(release: dict) -> bool:
+    """Lanzamiento oficial de tipo single, EP o álbum, sin ningún tipo secundario."""
+    group = release.get("release-group") or {}
     status = (release.get("status") or "").casefold()
-    primary_type = ((release.get("release-group") or {}).get("primary-type") or "").casefold()
-    return status == _ALLOWED_RELEASE_STATUS and primary_type in _ALLOWED_RELEASE_TYPES
+    primary_type = (group.get("primary-type") or "").casefold()
+    return status == _ALLOWED_RELEASE_STATUS and primary_type in _ALLOWED_RELEASE_TYPES and not group.get("secondary-types")
 
 
 def _has_release_metadata(releases: list[dict]) -> bool:
@@ -167,10 +172,8 @@ def _has_release_metadata(releases: list[dict]) -> bool:
 
 
 def _allowed_api_recording(recording: dict) -> bool:
-    releases = recording.get("releases") or []
-    if not _has_release_metadata(releases):
-        return True
-    return any(_release_matches(release) for release in releases)
+    # Sin lanzamientos o sin sus datos no se puede comprobar que sea oficial: se descarta.
+    return any(_release_matches(release) for release in recording.get("releases") or [])
 
 
 def _song(recording: dict) -> dict:
@@ -202,7 +205,8 @@ def _search_api(title: str, artist: str) -> list[dict]:
     if not terms:
         return []
     query = f"{terms} AND {_SEARCH_RELEASE_FILTER}"
-    songs = [_song(r) for r in _get("/recording", query=query, limit=20)["recordings"] if _allowed_api_recording(r)]
+    # Se piden 100 (misma petición) porque los directos y recopilatorios se descartan después.
+    songs = [_song(r) for r in _get("/recording", query=query, limit=100)["recordings"] if _allowed_api_recording(r)][:20]
     if songs or not can_fuzz(title, artist):
         return songs
     query = fuzzy_query(title, artist)
@@ -261,21 +265,22 @@ def recording_profile(mbid: str) -> tuple[dict, dict[str, int], str | None]:
 
 
 @lru_cache(maxsize=4096)
-def recording_is_explicit(mbid: str) -> bool:
-    """Only recording tags/disambiguation count; an unmarked recording is allowed.
+def recording_check(mbid: str) -> tuple[bool, bool]:
+    """(es explícita, tiene un lanzamiento oficial single/EP/álbum sin tipos secundarios), en una consulta.
 
-    Lookup failures propagate so a disabled explicit-content setting never
-    silently bypasses verification when the source is unavailable.
+    Para lo explícito solo cuentan las etiquetas y la nota de la grabación; sin marca se permite.
+    Los fallos se propagan para que el filtro nunca se salte en silencio si la fuente no responde.
     """
     def local(dsn):
         metadata = mb_db.recording_content_metadata(dsn, mbid)
         if metadata is None:
             raise MusicBrainzError("No se pudo verificar el contenido de la grabación.", 404)
-        return explicit_metadata(*metadata)
+        comment, tags, official = metadata
+        return explicit_metadata(comment, tags), official
 
     def remote():
-        recording = _get(f"/recording/{mbid}", inc="tags")
-        return explicit_metadata(recording.get("disambiguation"), _tags(recording))
+        recording = _get(f"/recording/{mbid}", inc="tags+releases+release-groups")
+        return explicit_metadata(recording.get("disambiguation"), _tags(recording)), _allowed_api_recording(recording)
 
     return _with_local_fallback(local, remote)
 
@@ -295,10 +300,10 @@ def artists_by_tags(top_tags: tuple[str, ...]) -> list[tuple[dict, dict[str, int
 
 
 def _album_tracks_api(artist_id: str) -> list[dict]:
-    query = f"arid:{artist_id} AND primarytype:album AND status:official AND NOT comment:live"
+    query = f"arid:{artist_id} AND {_SEARCH_RELEASE_FILTER} AND NOT comment:live"
     tracks, seen = [], set()
     for recording in _get("/recording", query=query, limit=15)["recordings"]:
-        if recording["id"] not in seen:
+        if recording["id"] not in seen and _allowed_api_recording(recording):
             seen.add(recording["id"])
             tracks.append(_song(recording))
     return tracks
@@ -306,7 +311,7 @@ def _album_tracks_api(artist_id: str) -> list[dict]:
 
 @lru_cache(maxsize=2048)
 def album_tracks(artist_id: str) -> list[dict]:
-    """Grabaciones de álbumes oficiales, conservando versiones para filtrar contenido.
+    """Grabaciones de singles, EPs y álbumes oficiales sin tipos secundarios, conservando versiones para filtrar contenido.
 
     El consumidor deduplica títulos después de comprobar qué versión es elegible.
     """
@@ -358,7 +363,11 @@ def _collaborators(artist_id: str) -> Scored:
 
 
 def collaborators(artist_id: str) -> Scored:
-    """Artistas que comparten créditos en grabaciones (featurings) o son miembros/colaboradores."""
+    """Artistas que comparten créditos en grabaciones (featurings) o son miembros/colaboradores.
+
+    ponytail: collaborators y versions no pasan por el filtro de lanzamientos oficiales; solo puntúan
+    artistas, y las canciones que se muestran salen de album_tracks, que ya viene filtrado.
+    """
     return _optional(lambda: _collaborators(artist_id), {})
 
 

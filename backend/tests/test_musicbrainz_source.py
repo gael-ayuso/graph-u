@@ -35,7 +35,7 @@ def test_uses_public_api_when_no_dsn(monkeypatch) -> None:
                     "id": "d9b46ecb-5472-4dcd-8fa4-dd6723189e27",
                     "title": "Reckoner",
                     "artist-credit": [{"name": "Radiohead", "joinphrase": ""}],
-                    "releases": [{"title": "In Rainbows"}],
+                    "releases": [{"title": "In Rainbows", "status": "Official", "release-group": {"primary-type": "Album"}}],
                     "length": 290000,
                 }
             ]
@@ -108,7 +108,7 @@ def test_falls_back_to_api_when_local_db_fails_mid_query(monkeypatch) -> None:
                     "id": "id-api",
                     "title": "Reckoner",
                     "artist-credit": [{"name": "Radiohead", "joinphrase": ""}],
-                    "releases": [],
+                    "releases": [{"title": "In Rainbows", "status": "Official", "release-group": {"primary-type": "Album"}}],
                     "length": 290000,
                 }
             ]

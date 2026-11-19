@@ -41,6 +41,7 @@ def isolate_sources(monkeypatch):
     monkeypatch.setattr(mb, "similar_artists", lambda _: {})
     monkeypatch.setattr(mb, "collaborators", lambda _: {})
     monkeypatch.setattr(mb, "album_tracks", lambda _: [])
+    monkeypatch.setattr(mb, "recording_check", lambda _: (False, True))  # oficial y no explícita
     mb._versions.cache_clear()
     yield
     mb._versions.cache_clear()

@@ -28,7 +28,9 @@ _thread_local = threading.local()
 
 # release_status: 1 = Official
 # release_group_primary_type: 1 = Album, 2 = Single, 3 = EP
-_OFFICIAL_RELEASE_EXISTS = """
+# Sin tipos secundarios: fuera recopilatorios, directos, bandas sonoras, remixes, demos, DJ-mix…
+_NO_SECONDARY_TYPE = "NOT EXISTS (SELECT 1 FROM musicbrainz.release_group_secondary_type_join st WHERE st.release_group = rg.id)"
+_OFFICIAL_RELEASE_EXISTS = f"""
     EXISTS (
         SELECT 1
         FROM musicbrainz.track tr
@@ -38,6 +40,7 @@ _OFFICIAL_RELEASE_EXISTS = """
         WHERE tr.recording = r.id
           AND rel.status = 1
           AND rg.type IN (1, 2, 3)
+          AND {_NO_SECONDARY_TYPE}
     )
 """.strip()
 
@@ -184,6 +187,7 @@ def search(dsn: str, title: str, artist: str) -> list[dict]:
             WHERE tr.recording = rk.id
               AND rel.status = 1
               AND rg.type IN (1, 2, 3)
+              AND {_NO_SECONDARY_TYPE}
             ORDER BY (cat.id IS NOT NULL) DESC, (rg.type = 1) DESC, ca.ordering ASC NULLS LAST, rel.id ASC
             LIMIT 1
         ) rel_pick ON true
@@ -302,7 +306,7 @@ def _search_fuzzy(conn: psycopg.Connection, title: str, artist: str) -> list[dic
     # Look up release metadata only for accepted results, never for all 400
     # fuzzy candidates. Preserve the Python ranking when the rows come back.
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 r.gid,
                 r.name,
@@ -328,6 +332,7 @@ def _search_fuzzy(conn: psycopg.Connection, title: str, artist: str) -> list[dic
                 WHERE tr.recording = r.id
                   AND rel.status = 1
                   AND rg.type IN (1, 2, 3)
+                  AND {_NO_SECONDARY_TYPE}
                 ORDER BY (cat.id IS NOT NULL) DESC, (rg.type = 1) DESC, ca.ordering ASC NULLS LAST, rel.id ASC
                 LIMIT 1
             ) rel_pick ON true
@@ -455,10 +460,14 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
         raise
 
 
-def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[str]] | None:
-    """Keep recording content labels separate from the artist's genre tags."""
-    sql = """
-        SELECT r.comment, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), ARRAY[]::text[])
+def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[str], bool] | None:
+    """(nota, etiquetas de la grabación, tiene lanzamiento oficial single/EP/álbum sin tipos secundarios).
+
+    Las etiquetas de contenido son las de la grabación, no los géneros del artista.
+    """
+    sql = f"""
+        SELECT r.comment, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), ARRAY[]::text[]),
+               {_OFFICIAL_RELEASE_EXISTS}
         FROM musicbrainz.recording r
         LEFT JOIN musicbrainz.recording_tag rt ON rt.recording = r.id AND rt.count > 0
         LEFT JOIN musicbrainz.tag t ON t.id = rt.tag
@@ -470,7 +479,7 @@ def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[st
         with _connection(dsn).cursor() as cur:
             cur.execute(sql, {"mbid": mbid})
             row = cur.fetchone()
-        return (row[0], row[1]) if row else None
+        return (row[0], row[1], row[2]) if row else None
     except psycopg.Error:
         reset_connection()
         raise
@@ -525,7 +534,7 @@ def album_tracks(dsn: str, artist_id: str) -> list[dict]:
     except ValueError:
         return []
 
-    sql = """
+    sql = f"""
         WITH a AS (
             SELECT id FROM musicbrainz.artist WHERE gid = %(mbid)s::uuid
             UNION ALL
@@ -541,7 +550,8 @@ def album_tracks(dsn: str, artist_id: str) -> list[dict]:
             FROM a
             JOIN musicbrainz.artist_credit_name acn ON acn.artist = a.id
             JOIN musicbrainz.release_group rg ON rg.artist_credit = acn.artist_credit
-            WHERE rg.type = 1
+            WHERE rg.type IN (1, 2, 3)
+              AND {_NO_SECONDARY_TYPE}
               AND rg.comment NOT ILIKE '%%live%%'
             LIMIT 20
         ),

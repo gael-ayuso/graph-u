@@ -6,6 +6,7 @@ import { GraphUUserButton } from "@/components/shared/graphu-user-button";
 import styles from "./page.module.css";
 import HeadphonesVideo from "./headphones-video";
 import IntroOverlay from "./intro-overlay";
+import HomeMotion from "./home-motion";
 import { Anton } from "next/font/google";
 
 // Solo el título y el contador del intro usan Anton.
@@ -19,6 +20,7 @@ export default function Home() {
   return (
     <div className={`${styles.page} ${anton.variable}`}>
       <IntroOverlay />
+      <HomeMotion />
       <a className={styles.skip} href="#contenido">Saltar al contenido</a>
       <header className={styles.header}>
         <Link href="/" className={styles.brand} aria-label="GraphU, inicio">GraphU<span aria-hidden="true">_</span></Link>
@@ -51,23 +53,23 @@ export default function Home() {
             <div className={styles.actions}>
               <Suspense
                 fallback={
-                  <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                  <Link href="/sign-up" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Guarda favoritos y playlists, y recibe recomendaciones a tu medida.">
                     Crear cuenta <span aria-hidden="true">↗</span>
                   </Link>
                 }
               >
                 <Show when="signed-out">
-                  <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                  <Link href="/sign-up" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Guarda favoritos y playlists, y recibe recomendaciones a tu medida.">
                     Crear cuenta <span aria-hidden="true">↗</span>
                   </Link>
                 </Show>
                 <Show when="signed-in">
-                  <Link href="/perfil" className={`${styles.button} ${styles.primary}`}>
+                  <Link href="/perfil" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Tus preferencias, favoritos y playlists en un solo lugar.">
                     Ir a mi perfil <span aria-hidden="true">↗</span>
                   </Link>
                 </Show>
               </Suspense>
-              <Link href="/explorar" className={`${styles.button} ${styles.secondary}`}>Empezar a explorar <span aria-hidden="true">→</span></Link>
+              <Link href="/explorar" className={`${styles.button} ${styles.secondary} ${styles.tip}`} data-tip="Busca una canción y descubre otras parecidas en un mapa de conexiones.">Empezar a explorar <span aria-hidden="true">→</span></Link>
             </div>
           </div>
           <HeadphonesVideo />
@@ -140,23 +142,23 @@ export default function Home() {
               <div className={styles.actions}>
                 <Suspense
                   fallback={
-                    <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                    <Link href="/sign-up" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Guarda favoritos y playlists, y recibe recomendaciones a tu medida.">
                       Crear cuenta <span aria-hidden="true">↗</span>
                     </Link>
                   }
                 >
                   <Show when="signed-out">
-                    <Link href="/sign-up" className={`${styles.button} ${styles.primary}`}>
+                    <Link href="/sign-up" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Guarda favoritos y playlists, y recibe recomendaciones a tu medida.">
                       Crear cuenta <span aria-hidden="true">↗</span>
                     </Link>
                   </Show>
                   <Show when="signed-in">
-                    <Link href="/perfil" className={`${styles.button} ${styles.primary}`}>
+                    <Link href="/perfil" className={`${styles.button} ${styles.primary} ${styles.tip}`} data-tip="Tus preferencias, favoritos y playlists en un solo lugar.">
                       Ir a mi perfil <span aria-hidden="true">↗</span>
                     </Link>
                   </Show>
                 </Suspense>
-                <Link href="/explorar" className={`${styles.button} ${styles.secondary}`}>Ir a Explorar <span aria-hidden="true">→</span></Link>
+                <Link href="/explorar" className={`${styles.button} ${styles.secondary} ${styles.tip}`} data-tip="Busca una canción y descubre otras parecidas en un mapa de conexiones.">Ir a Explorar <span aria-hidden="true">→</span></Link>
               </div>
               <Suspense fallback={<p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>}>
                 <Show when="signed-out">

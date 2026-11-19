@@ -64,6 +64,7 @@
 @layer base {
   * { box-sizing: border-box; border-color: var(--border); }
   html { scroll-behavior: smooth; scroll-padding-top: 28px; }
+  html.lenis { scroll-behavior: auto; } /* Lenis ya suaviza: el smooth nativo lo haría ir a tirones. */
   body { margin: 0; background: var(--forest); color: var(--cream); font-family: var(--font-geist-mono), monospace; }
   button, input { font: inherit; }
   a, button, input { -webkit-tap-highlight-color: transparent; }

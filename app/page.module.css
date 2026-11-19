@@ -2,6 +2,107 @@
 .page main, .page section, .page article, .heroCopy { min-width: 0; }
 .skip { position: fixed; z-index: 10; top: 12px; left: 12px; padding: 12px; background: var(--cream); color: var(--forest); transform: translateY(-180%); }
 .skip:focus { transform: translateY(0); }
+
+/* Intro (referencia "Intro Collage"): las portadas se revelan apiladas mientras sube GRAPH-U
+   y cuenta 0-100 %; luego se dispersan en collage. Texto en difference sobre las fotos. */
+.introOverlay {
+  --intro-ease: cubic-bezier(.76, 0, .24, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 550ms ease;
+}
+.introOverlayExiting { opacity: 0; pointer-events: none; }
+.introPhoto {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--w);
+  aspect-ratio: 1;
+  object-fit: cover;
+  opacity: 0;
+  will-change: transform, clip-path;
+}
+.introPhotoIn { animation: introPhotoIn 800ms var(--intro-ease) var(--in-delay) forwards; }
+.introPhotoScatter { animation: introPhotoScatter 1300ms var(--intro-ease) var(--out-delay) forwards; }
+@keyframes introPhotoIn {
+  from { opacity: 1; clip-path: inset(100% 0 0 0); transform: translate(-50%, -50%) translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(1.25); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); transform: translate(-50%, -50%) translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(1); }
+}
+@keyframes introPhotoScatter {
+  from { opacity: 1; clip-path: inset(0 0 0 0); transform: translate(-50%, -50%) translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(1); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); transform: translate(-50%, -50%) translate(var(--fx), var(--fy)) rotate(var(--fr)) scale(.85); }
+}
+.introText { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: difference; }
+.introTitleClip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+.introTitle {
+  font-family: var(--font-anton), "Anton", Impact, sans-serif;
+  font-size: 21vw;
+  line-height: .9;
+  letter-spacing: -.01em;
+  text-transform: uppercase;
+  transform: translateY(110%);
+}
+.introTitleIn { animation: introTitleIn 1100ms var(--intro-ease) 200ms forwards; }
+@keyframes introTitleIn { to { transform: translateY(0); } }
+.introCounter {
+  position: absolute;
+  right: 32px;
+  bottom: 20px;
+  font-family: var(--font-anton), "Anton", Impact, sans-serif;
+  font-size: 11vw;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.introCounter span { font-size: .35em; vertical-align: top; }
+.introLoading {
+  position: absolute;
+  left: 32px;
+  bottom: 32px;
+  font-size: 13px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.introFadeOut { animation: introFadeOut 600ms var(--intro-ease) forwards; }
+@keyframes introFadeOut { to { opacity: 0; } }
+.introEnter {
+  position: absolute;
+  left: 32px;
+  bottom: 28px;
+  padding: 10px 16px;
+  border: 1px solid #fff;
+  background: none;
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  mix-blend-mode: difference;
+  opacity: 0;
+  pointer-events: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.introEnter:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 4px; }
+.introEnterVisible { pointer-events: auto; animation: introEnterIn 600ms var(--intro-ease) 1200ms forwards; }
+@keyframes introEnterIn { to { opacity: 1; } }
+.introEnter:hover { background: #fff; color: #000; }
+
 .header { min-height: 84px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 1px solid var(--olive); }
 .brand, .footerBrand { font-size: 29px; font-weight: 800; letter-spacing: -.035em; text-decoration: none; white-space: nowrap; }
 .brand span, .footerBrand span { color: var(--clay); }
@@ -37,6 +138,7 @@
 .motionButton:focus-visible { outline: 2px solid var(--clay); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   .motionButton { display: none; }
+  .introOverlay { display: none; }
 }
 
 .record span, .node span { color: #bdae93; font-size: 10px; letter-spacing: .06em; }

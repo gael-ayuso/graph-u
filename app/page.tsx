@@ -5,10 +5,20 @@ import { Suspense } from "react";
 import { GraphUUserButton } from "@/components/shared/graphu-user-button";
 import styles from "./page.module.css";
 import HeadphonesVideo from "./headphones-video";
+import IntroOverlay from "./intro-overlay";
+import { Anton } from "next/font/google";
+
+// Solo el título y el contador del intro usan Anton.
+const anton = Anton({
+  variable: "--font-anton",
+  weight: "400",
+  subsets: ["latin"],
+});
 
 export default function Home() {
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${anton.variable}`}>
+      <IntroOverlay />
       <a className={styles.skip} href="#contenido">Saltar al contenido</a>
       <header className={styles.header}>
         <Link href="/" className={styles.brand} aria-label="GraphU, inicio">GraphU<span aria-hidden="true">_</span></Link>

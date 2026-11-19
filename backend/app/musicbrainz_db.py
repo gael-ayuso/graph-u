@@ -460,26 +460,43 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
         raise
 
 
-def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[str], bool] | None:
-    """(nota, etiquetas de la grabación, tiene lanzamiento oficial single/EP/álbum sin tipos secundarios).
+def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[str], bool, dict] | None:
+    """(nota, etiquetas de la grabación, tiene lanzamiento oficial single/EP/álbum sin tipos secundarios, ese disco).
 
     Las etiquetas de contenido son las de la grabación, no los géneros del artista.
+    El disco ({release, releaseMbid, releaseGroupMbid}) da la portada a canciones que llegan sin él (Last.fm).
     """
     sql = f"""
         SELECT r.comment, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), ARRAY[]::text[]),
-               {_OFFICIAL_RELEASE_EXISTS}
+               pick.name, pick.gid, pick.rg_gid
         FROM musicbrainz.recording r
+        LEFT JOIN LATERAL (
+            SELECT rel.name, rel.gid, rg.gid AS rg_gid
+            FROM musicbrainz.track tr
+            JOIN musicbrainz.medium m ON m.id = tr.medium
+            JOIN musicbrainz.release rel ON rel.id = m.release
+            JOIN musicbrainz.release_group rg ON rg.id = rel.release_group
+            WHERE tr.recording = r.id
+              AND rel.status = 1
+              AND rg.type IN (1, 2, 3)
+              AND {_NO_SECONDARY_TYPE}
+            ORDER BY rel.id
+            LIMIT 1
+        ) pick ON true
         LEFT JOIN musicbrainz.recording_tag rt ON rt.recording = r.id AND rt.count > 0
         LEFT JOIN musicbrainz.tag t ON t.id = rt.tag
         WHERE r.gid = %(mbid)s::uuid
            OR r.id = (SELECT new_id FROM musicbrainz.recording_gid_redirect WHERE gid = %(mbid)s::uuid)
-        GROUP BY r.id, r.comment
+        GROUP BY r.id, r.comment, pick.name, pick.gid, pick.rg_gid
     """
     try:
         with _connection(dsn).cursor() as cur:
             cur.execute(sql, {"mbid": mbid})
             row = cur.fetchone()
-        return (row[0], row[1], row[2]) if row else None
+        if not row:
+            return None
+        release = {"release": row[2], "releaseMbid": str(row[3]), "releaseGroupMbid": str(row[4])} if row[3] else {}
+        return row[0], row[1], bool(release), release
     except psycopg.Error:
         reset_connection()
         raise

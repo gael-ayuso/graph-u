@@ -265,22 +265,26 @@ def recording_profile(mbid: str) -> tuple[dict, dict[str, int], str | None]:
 
 
 @lru_cache(maxsize=4096)
-def recording_check(mbid: str) -> tuple[bool, bool]:
-    """(es explícita, tiene un lanzamiento oficial single/EP/álbum sin tipos secundarios), en una consulta.
+def recording_check(mbid: str) -> tuple[bool, bool, dict]:
+    """(es explícita, tiene un lanzamiento oficial single/EP/álbum sin tipos secundarios, ese disco), en una consulta.
 
     Para lo explícito solo cuentan las etiquetas y la nota de la grabación; sin marca se permite.
+    El disco ({release, releaseMbid, releaseGroupMbid}, vacío si no es oficial) sirve para la portada.
     Los fallos se propagan para que el filtro nunca se salte en silencio si la fuente no responde.
     """
     def local(dsn):
         metadata = mb_db.recording_content_metadata(dsn, mbid)
         if metadata is None:
             raise MusicBrainzError("No se pudo verificar el contenido de la grabación.", 404)
-        comment, tags, official = metadata
-        return explicit_metadata(comment, tags), official
+        comment, tags, official, release = metadata
+        return explicit_metadata(comment, tags), official, release
 
     def remote():
         recording = _get(f"/recording/{mbid}", inc="tags+releases+release-groups")
-        return explicit_metadata(recording.get("disambiguation"), _tags(recording)), _allowed_api_recording(recording)
+        official = _allowed_api_recording(recording)
+        song = _song({"id": mbid, "title": "", **recording}) if official else {}
+        release = {key: song[key] for key in ("release", "releaseMbid", "releaseGroupMbid") if song.get(key)}
+        return explicit_metadata(recording.get("disambiguation"), _tags(recording)), official, release
 
     return _with_local_fallback(local, remote)
 

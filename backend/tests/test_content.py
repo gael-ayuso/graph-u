@@ -40,17 +40,17 @@ def test_public_recording_metadata_and_cache(monkeypatch):
         return {"disambiguation": "", "tags": [{"name": "explicit", "count": 1}, {"name": "clean", "count": 0}]}
     monkeypatch.setattr(mb, "_get", get)
     # Sin lanzamientos no se puede comprobar que sea oficial.
-    assert recording_check(uid(1)) == (True, False)
-    assert recording_check(uid(1)) == (True, False)
+    assert recording_check(uid(1)) == (True, False, {})
+    assert recording_check(uid(1)) == (True, False, {})
     assert calls == [(f"/recording/{uid(1)}", {"inc": "tags+releases+release-groups"})]
 
 
 def test_local_metadata_missing_and_db_failure_fallback(monkeypatch):
     monkeypatch.setattr(mb, "_env", lambda _: "dsn")
     monkeypatch.setattr(mb, "is_local_db_active", lambda: True)
-    monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: ("clean", [], True))
+    monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: ("clean", [], True, {}))
     monkeypatch.setattr(mb, "_get", lambda *a, **k: pytest.fail("unexpected public request"))
-    assert recording_check(uid(1)) == (False, True)
+    assert recording_check(uid(1)) == (False, True, {})
     monkeypatch.setattr(mb.mb_db, "recording_content_metadata", lambda dsn, mid: None)
     with pytest.raises(mb.MusicBrainzError) as error:
         recording_check(uid(2))
@@ -60,7 +60,7 @@ def test_local_metadata_missing_and_db_failure_fallback(monkeypatch):
     monkeypatch.setattr(mb.mb_db, "recording_content_metadata", broken)
     monkeypatch.setattr(mb, "_mark_local_db_inactive", lambda _: None)
     monkeypatch.setattr(mb, "_get", lambda *a, **k: {"tags": [{"name": "explicit", "count": 1}]})
-    assert recording_check(uid(3)) == (True, False)
+    assert recording_check(uid(3)) == (True, False, {})
 
 
 @pytest.fixture
@@ -165,3 +165,11 @@ def test_local_album_retains_recording_versions_until_content_filter(monkeypatch
     monkeypatch.setattr(mb.mb_db, "_connection", lambda dsn: Connection())
     catalog = mb.mb_db.album_tracks("test-dsn", uid(20))
     assert_clean_album_variant_survives(monkeypatch, catalog)
+
+
+def test_lastfm_song_gets_cover_from_official_check(client, tracks, monkeypatch):
+    cover = {"release": "Album", "releaseMbid": uid(500), "releaseGroupMbid": uid(501)}
+    monkeypatch.setattr(mb, "recording_check", lambda mid: (False, True, cover))
+    recs = client.post("/api/recommendations", json={"seeds": [uid(1)], "discoveryMode": "conservative"}).json()["recommendations"]
+    lastfm = next(rec["song"] for rec in recs if rec["song"]["id"] == uid(100))
+    assert {key: lastfm[key] for key in cover} == cover

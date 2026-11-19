@@ -267,7 +267,7 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
 def _branch_queue(branch: dict, excluded: set[str], seed_ids: set[str], catalog: dict, batch_size: int, catalog_limit: int, deadline: float, rng: Random,
                   excluded_versions: set[tuple[str, str]] = frozenset(), excluded_ids: set[str] = frozenset(),
                   exploration_jitter: float = EXPLORATION_JITTER, preferred_tags: tuple[str, ...] = (),
-                  allow_explicit: bool = True, content_checks: dict[str, tuple[bool, bool] | None] | None = None):
+                  allow_explicit: bool = True, content_checks: dict[str, tuple | None] | None = None):
     branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng,
                               exploration_jitter, preferred_tags))
     checks = content_checks if content_checks is not None else {}
@@ -293,8 +293,11 @@ def _branch_queue(branch: dict, excluded: set[str], seed_ids: set[str], catalog:
         if checks[song_id] is None:
             branch["tracksFailed"] = True
             return False
-        explicit, official = checks[song_id]
-        return (official or song_id not in lastfm) and (allow_explicit or not explicit)
+        explicit, official, *release = checks[song_id]
+        allowed = (official or song_id not in lastfm) and (allow_explicit or not explicit)
+        if allowed and release and not song.get("releaseMbid"):
+            song.update(release[0])  # Last.fm no trae disco: la verificación ya dio uno oficial para la portada.
+        return allowed
 
     yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng,
                            excluded_versions, exploration_jitter, track_allowed)

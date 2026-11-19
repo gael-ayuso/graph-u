@@ -153,8 +153,8 @@ def test_public_recording_check_distinguishes_official_from_compilation(monkeypa
 
     monkeypatch.setattr(mb, "_get", fake_get)
 
-    assert real_recording_check(uid(1)) == (False, True)
-    assert real_recording_check(uid(2)) == (False, False)
+    assert real_recording_check(uid(1)) == (False, True, {"release": "OK Computer"})
+    assert real_recording_check(uid(2)) == (False, False, {})
     assert calls == [
         (f"/recording/{uid(1)}", {"inc": "tags+releases+release-groups"}),
         (f"/recording/{uid(2)}", {"inc": "tags+releases+release-groups"}),
@@ -230,7 +230,7 @@ def test_local_sql_queries_filter_secondary_types_and_include_single_ep_album(mo
             return [(uid(100), "Track", "Artist", "Album", None, None, None, None)]
 
         def fetchone(self):
-            return (None, [], True)
+            return (None, [], "Album", uid(40), uid(41))
 
     class FakeConnection:
         def cursor(self):
@@ -242,7 +242,7 @@ def test_local_sql_queries_filter_secondary_types_and_include_single_ep_album(mo
     metadata = mb.mb_db.recording_content_metadata("test-dsn", uid(30))
 
     assert len(tracks) == 1
-    assert metadata == (None, [], True)
+    assert metadata == (None, [], True, {"release": "Album", "releaseMbid": uid(40), "releaseGroupMbid": uid(41)})
     assert len(executed) == 2
 
     album_sql, album_params = executed[0]

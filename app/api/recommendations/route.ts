@@ -1,6 +1,8 @@
 import { MusicBrainzError, recommendSongs } from "@/lib/musicbrainz";
 import { unstable_rethrow } from "next/navigation";
 import { getCurrentUserProfile } from "@/lib/users/current-user";
+import { getDb } from "@/lib/db";
+import { extractUserPreferences } from "@/lib/users/profile-settings";
 import { recordRecommendations } from "@/lib/recommendation-actions";
 import type { ExcludedVersion, RecommendationOptions } from "@/lib/musicbrainz-types";
 
@@ -15,6 +17,7 @@ export async function POST(request: Request) {
   const excludeRecordings: unknown = body?.excludeRecordings === undefined ? [] : body.excludeRecordings;
   const excludeVersions: unknown = body?.excludeVersions === undefined ? [] : body.excludeVersions;
   const limit: unknown = body?.limit === undefined ? 10 : body.limit;
+  const maxResults: unknown = body?.maxResults === undefined ? 30 : body.maxResults;
   if (!ids(seeds, 10) || !seeds.length) {
     return Response.json({ error: "Elige entre 1 y 10 canciones." }, { status: 400 });
   }
@@ -34,6 +37,9 @@ export async function POST(request: Request) {
   if (typeof limit !== "number" || !Number.isInteger(limit) || limit < 1 || limit > 30) {
     return Response.json({ error: "El límite debe ser un entero entre 1 y 30." }, { status: 400 });
   }
+  if (typeof maxResults !== "number" || !Number.isInteger(maxResults) || maxResults < 1 || maxResults > 30) {
+    return Response.json({ error: "La capacidad debe ser un entero entre 1 y 30." }, { status: 400 });
+  }
 
   const canonicalSeeds = seeds.map((id) => id.toLowerCase());
   const canonicalArtists = excludeArtists.map((id) => id.toLowerCase());
@@ -49,6 +55,21 @@ export async function POST(request: Request) {
   };
   try {
     const user = await getCurrentUserProfile();
+    if (user) {
+      const preferences = await getDb().userPreferences.findUnique({ where: { userId: user.id } });
+      const saved = extractUserPreferences(preferences?.settings);
+      options.discoveryMode = saved.discoveryMode;
+      options.allowExplicit = saved.allowExplicit;
+      options.preferredTags = saved.preferredTags;
+      options.limit = Math.min(body.limit === undefined ? saved.defaultLimit : limit, maxResults);
+      forwardedOptions.discoveryMode = options.discoveryMode;
+      forwardedOptions.allowExplicit = options.allowExplicit;
+      forwardedOptions.preferredTags = options.preferredTags;
+      forwardedOptions.limit = options.limit;
+    } else if (body.maxResults !== undefined) {
+      options.limit = Math.min(limit, maxResults);
+      forwardedOptions.limit = options.limit;
+    }
     const data = await recommendSongs(canonicalSeeds, canonicalArtists, forwardedOptions);
     return Response.json(user ? await recordRecommendations(user.id, canonicalSeeds, canonicalArtists, data, options) : data,
       { headers: { "Cache-Control": "private, no-store" } });

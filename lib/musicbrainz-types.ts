@@ -1,3 +1,5 @@
+import type { DiscoveryMode } from "./users/profile-settings";
+
 export type Song = {
   id: string;
   title: string;
@@ -32,6 +34,9 @@ export type RecommendationReason = {
 export type ExcludedVersion = { artistId: string; title: string };
 
 export type RecommendationOptions = {
+  discoveryMode?: DiscoveryMode;
+  allowExplicit?: boolean;
+  preferredTags?: string[];
   limit?: number;
   excludeRecordings?: string[];
   excludeVersions?: ExcludedVersion[];

@@ -131,7 +131,8 @@ def _get(path: str, **params) -> dict:
     # solo aplica cuando se usa el respaldo de la API pública.
     with _lock:
         # MusicBrainz responde 503 cuando está saturado aunque se respete el límite: reintento con espera creciente.
-        for delay in (1.05, 2, 4, 6):
+        # Los 503 son intermitentes (~1 de cada 5 a 1 petición/s), así que esperas cortas pierden menos tiempo.
+        for delay in (1.05, 1.5, 2.5, 4):
             wait = _last_request + delay - time.monotonic()
             if wait > 0:
                 time.sleep(wait)

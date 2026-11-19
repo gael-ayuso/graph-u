@@ -1,6 +1,7 @@
 import time
 from collections import Counter
 from random import Random
+from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
@@ -14,6 +15,8 @@ app = FastAPI(title="GraphU API", version="0.1.0")
 RECOMMENDATION_SECONDS = 45.0
 # Solo intercambia candidatos cuya afinidad difiere como máximo en 0.1.
 EXPLORATION_JITTER = 0.05
+# Selection margins preserve the balanced behavior and original affinity scores.
+DISCOVERY_JITTER = {"conservative": 0.0, "balanced": EXPLORATION_JITTER, "adventurous": 0.15}
 
 
 @app.get("/health")
@@ -71,6 +74,7 @@ class ExcludedVersion(BaseModel):
 
 class RecommendationRequest(BaseModel):
     seeds: list[UUID] = Field(min_length=1, max_length=10)
+    discovery_mode: Literal["conservative", "balanced", "adventurous"] = Field("balanced", alias="discoveryMode")
     limit: int = Field(10, ge=1, le=30)
     exclude_artists: list[UUID] = Field(default_factory=list, max_length=200, alias="excludeArtists")
     exclude_recordings: list[UUID] = Field(default_factory=list, max_length=200, alias="excludeRecordings")
@@ -104,10 +108,11 @@ def _eligible_tracks(artist_id: str, songs: list[dict], excluded_ids: set[str], 
 
 def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]], catalog: dict[str, list[dict] | None],
             allow_album: bool = True, excluded_ids: set[str] = frozenset(),
-            excluded_versions: set[tuple[str, str]] = frozenset(), *, rng: Random) -> list[dict]:
+            excluded_versions: set[tuple[str, str]] = frozenset(), *, rng: Random,
+            exploration_jitter: float = EXPLORATION_JITTER) -> list[dict]:
     """Count only eligible, distinct hints before deciding whether to query albums."""
     songs = _eligible_tracks(artist_id, [song for _, song in sorted(hints.get(artist_id, []),
-                             key=lambda h: -(h[0] + rng.uniform(-EXPLORATION_JITTER, EXPLORATION_JITTER)))],
+                             key=lambda h: -(h[0] + rng.uniform(-exploration_jitter, exploration_jitter)))],
                              excluded_ids, excluded_versions)
     if len(songs) < 2 and allow_album:
         if artist_id not in catalog:
@@ -119,7 +124,8 @@ def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]], catalog:
     return _eligible_tracks(artist_id, songs, excluded_ids, excluded_versions)
 
 
-def _candidates(song: dict, tags: dict, artist_id: str | None, excluded: set[str], seed_ids: set[str], deadline: float, rng: Random) -> dict:
+def _candidates(song: dict, tags: dict, artist_id: str | None, excluded: set[str], seed_ids: set[str], deadline: float, rng: Random,
+                exploration_jitter: float = EXPLORATION_JITTER) -> dict:
     """Un perfil y cuatro señales independientes para esta canción."""
     top_tags = tuple(tag for tag, _ in Counter(tags).most_common(3))
     by_tags, source_failed, search_limited = [], False, False
@@ -156,7 +162,7 @@ def _candidates(song: dict, tags: dict, artist_id: str | None, excluded: set[str
                              for key, (artist, score) in found.items()}
     artists = hybrid(by_tags, signals, exclude=excluded)
     # Variar la selección sin cambiar las puntuaciones ni sus explicaciones.
-    artists.sort(key=lambda candidate: -(candidate[1] + rng.uniform(-EXPLORATION_JITTER, EXPLORATION_JITTER)))
+    artists.sort(key=lambda candidate: -(candidate[1] + rng.uniform(-exploration_jitter, exploration_jitter)))
     return {"song": song, "artists": artists, "byId": {a[0]["id"]: a for a in artists}, "hints": hints,
             "sourceFailed": source_failed, "tracksFailed": False, "searchLimited": search_limited,
             "prepared": True, "exhausted": False, "yielded": False}
@@ -179,7 +185,7 @@ def _reason(branch: dict, song: dict, artist_id: str) -> dict | None:
 
 
 def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int, catalog_limit: int, deadline: float, rng: Random,
-                excluded_versions: set[tuple[str, str]] = frozenset()):
+                excluded_versions: set[tuple[str, str]] = frozenset(), exploration_jitter: float = EXPLORATION_JITTER):
     artists = branch["artists"]
     queries = 0
     # Cargar solo los lotes que se consumen y seguir con otros artistas si faltan pistas.
@@ -198,7 +204,7 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
                     branch["searchLimited"] = True
                 else:
                     queries += 1
-            tracks = [song for song in _tracks(artist["id"], branch["hints"], catalog, allow_album, seed_ids, excluded_versions, rng=rng)
+            tracks = [song for song in _tracks(artist["id"], branch["hints"], catalog, allow_album, seed_ids, excluded_versions, rng=rng, exploration_jitter=exploration_jitter)
                       if song["id"] not in seed_ids and _reason(branch, song, artist["id"]) is not None]
             if artist["id"] in catalog and catalog[artist["id"]] is None:
                 branch["tracksFailed"] = True
@@ -215,9 +221,10 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
 
 
 def _branch_queue(branch: dict, excluded: set[str], seed_ids: set[str], catalog: dict, batch_size: int, catalog_limit: int, deadline: float, rng: Random,
-                  excluded_versions: set[tuple[str, str]] = frozenset(), excluded_ids: set[str] = frozenset()):
-    branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng))
-    yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng, excluded_versions)
+                  excluded_versions: set[tuple[str, str]] = frozenset(), excluded_ids: set[str] = frozenset(),
+                  exploration_jitter: float = EXPLORATION_JITTER):
+    branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng, exploration_jitter))
+    yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng, excluded_versions, exploration_jitter)
 
 
 @app.post("/api/recommendations")
@@ -249,7 +256,7 @@ def recommend(body: RecommendationRequest):
     # La API pública limita peticiones por segundo: no recorrer 100 catálogos vacíos
     # por semilla. La cuota separada evita que una semilla consuma la de las demás.
     catalog_limit = 100 if branches and mb.active_source() == "local_db" else max(1, 12 // len(seeds))
-    recommendations = distribute([_branch_queue(branch, excluded, seed_ids, catalog, batch_size, catalog_limit, deadline, rng, excluded_versions, excluded_ids)
+    recommendations = distribute([_branch_queue(branch, excluded, seed_ids, catalog, batch_size, catalog_limit, deadline, rng, excluded_versions, excluded_ids, DISCOVERY_JITTER[body.discovery_mode])
                                   for branch in branches], body.limit)
     for rec in recommendations:
         # También reconocer las semillas que comparten un resultado ya elegido, sin duplicarlo.

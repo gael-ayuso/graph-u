@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import type { Song } from "@/lib/musicbrainz-types";
 import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
 import { CoverArt } from "@/components/shared/cover-art";
-import { SavedRecommendationsPanel } from "@/components/recommendation-library";
-import { ExplorationControls, ExplorationBatches } from "@/components/exploration-batches";
+import { ExplorationControls } from "@/components/exploration-batches";
 
 export { snapshot, subscribe, readSongs } from "@/lib/saved-song-list";
 import { snapshot, subscribe, readSongs, writeSongs } from "@/lib/saved-song-list";
@@ -18,6 +18,7 @@ function duration(milliseconds: number | null) {
 }
 
 export function SongDemo() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
   const [results, setResults] = useState<Song[]>([]);
@@ -31,6 +32,10 @@ export function SongDemo() {
   const saved = useMemo(() => readSongs(rawList), [rawList]);
   const savedIds = useMemo(() => new Set(saved.map((song) => song.id)), [saved]);
   useEffect(() => () => { controller.current?.abort(); }, []);
+
+  const handleStartSuccess = useCallback(() => {
+    router.push("/explorar/grafo");
+  }, [router]);
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,9 +130,7 @@ export function SongDemo() {
           <p className="sr-only" role="status">{notice}</p>
         </section>
       </div>
-      <ExplorationControls saved={saved} />
-      <ExplorationBatches />
-      <SavedRecommendationsPanel />
+      <ExplorationControls saved={saved} showGraphLink onStartSuccess={handleStartSuccess} />
     </>
   );
 }

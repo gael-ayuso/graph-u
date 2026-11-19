@@ -54,7 +54,7 @@ export function GraphUUserButton() {
     >
       <UserButton.MenuItems>
         <UserButton.Link label="Mi perfil" labelIcon={<ProfileIcon />} href="/perfil" />
-        <UserButton.Link label="Explorar grafo" labelIcon={<GraphIcon />} href="/explorar" />
+        <UserButton.Link label="Explorar" labelIcon={<GraphIcon />} href="/explorar" />
         <UserButton.Link label="Favoritos" labelIcon={<HeartIcon />} href="/favoritos" />
         <UserButton.Link label="Playlists" labelIcon={<PlaylistIcon />} href="/playlists" />
       </UserButton.MenuItems>

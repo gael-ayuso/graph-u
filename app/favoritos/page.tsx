@@ -490,10 +490,10 @@ export default function FavoritosPage() {
             {showCatalogPanel ? "Cerrar buscador" : "+ Agregar favorito"}
           </button>
           <Link
-            href="/demo"
+            href="/explorar"
             className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-4 py-2 text-sm text-[var(--cream)] transition-colors hover:border-[var(--clay)] hover:text-[var(--clay)]"
           >
-            Ir a Demo
+            Ir a Explorar
           </Link>
         </>
       }
@@ -822,7 +822,7 @@ export default function FavoritosPage() {
             description={
               searchFilter
                 ? "Prueba con otro término de búsqueda."
-                : "Busca canciones en el catálogo o guarda recomendaciones desde Demo."
+                : "Busca canciones en el catálogo o guarda recomendaciones desde Explorar."
             }
             action={
               !searchFilter && (
@@ -835,10 +835,10 @@ export default function FavoritosPage() {
                     + Buscar canciones
                   </button>
                   <Link
-                    href="/demo"
+                    href="/explorar"
                     className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-4 py-2 text-sm text-[var(--cream)] hover:border-[var(--clay)] hover:text-[var(--clay)]"
                   >
-                    Ir a Demo
+                    Ir a Explorar
                   </Link>
                 </div>
               )
@@ -883,13 +883,13 @@ export default function FavoritosPage() {
 
                   <div className="flex flex-wrap items-center gap-2 pl-7 sm:pl-0">
                     <Link
-                      href="/demo"
+                      href="/explorar"
                       className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-3 py-2 text-xs text-[var(--cream)] hover:border-[var(--clay)] hover:text-[var(--clay)]"
                     >
                       Buscar similares
                     </Link>
                     <Link
-                      href="/explorar"
+                      href="/explorar/grafo"
                       className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-3 py-2 text-xs text-[var(--cream)] hover:border-[var(--clay)] hover:text-[var(--clay)]"
                     >
                       Explorar grafo

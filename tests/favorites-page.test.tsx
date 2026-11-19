@@ -347,14 +347,15 @@ describe("app/favoritos/page.tsx", () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it("switches between Canciones and Artistas tabs and renders corrected links without /recomendaciones", async () => {
+  it("switches between Canciones and Artistas tabs and renders corrected links without /demo or /recomendaciones", async () => {
     await mountApp(<FavoritosPage />);
     let tree = reactTestRuntime.getTree();
 
     const allLinks = findHostNodes(tree, (n) => n.tag === "a");
     const hrefs = allLinks.map((n) => n.props.href);
-    expect(hrefs).toContain("/demo");
     expect(hrefs).toContain("/explorar");
+    expect(hrefs).toContain("/explorar/grafo");
+    expect(hrefs).not.toContain("/demo");
     expect(hrefs).not.toContain("/recomendaciones");
     expect(getTextContent(tree)).not.toContain("Recomendaciones");
 

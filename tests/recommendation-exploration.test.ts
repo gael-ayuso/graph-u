@@ -257,7 +257,7 @@ describe("T3 explorationReducer and ExplorationCoordinator", () => {
     expect(state.focusedBatchId).toBeNull();
   });
 
-  it("enforces EXPLORATION_CAP = 200 with trailing min(10, remaining) limit and does not truncate history or exclusions", async () => {
+  it("enforces EXPLORATION_CAP = 200 with trailing min(30, remaining) limit and does not truncate history or exclusions", async () => {
     const { transport, calls } = createDeferredExplorationTransport();
     const coordinator = new ExplorationCoordinator("guest", transport);
     const originals = makeSongs(4, 1, 1);
@@ -285,7 +285,7 @@ describe("T3 explorationReducer and ExplorationCoordinator", () => {
       const p = coordinator.expand();
       const batchRecs = makeSongs(10, 100 + step * 10, 3);
       const call = calls[calls.length - 1];
-      expect(call.request.limit).toBe(10);
+      expect(call.request.limit).toBe(Math.min(30, 186 - step * 10));
       call.resolve(
         buildExplorationResponse({
           seeds: [lastRec],
@@ -303,7 +303,7 @@ describe("T3 explorationReducer and ExplorationCoordinator", () => {
     expect(Object.keys(coordinator.getSnapshot().songsById)).toHaveLength(194);
     expect(remainingCapacity(coordinator.getSnapshot())).toBe(6);
 
-    // At 194 songs, expand asks for limit = min(10, 6) = 6 and keeps all 194 exclusions (no truncation).
+    // At 194 songs, expand asks for limit = min(30, 6) = 6 and keeps all 194 exclusions (no truncation).
     coordinator.select(lastRec.id, true);
     const pFinal = coordinator.expand();
     const finalCall = calls[calls.length - 1];
@@ -340,7 +340,7 @@ describe("T3 explorationReducer and ExplorationCoordinator", () => {
     const freshOriginals = makeSongs(2, 900, 1);
     const pFresh = coordinator.start(freshOriginals);
     expect(calls).toHaveLength(21);
-    expect(calls[20].request.limit).toBe(10);
+    expect(calls[20].request.limit).toBe(30);
     calls[20].reject(new Error("Temporary error"));
     await expect(pFresh).resolves.toBe(false);
     // Failed new start preserves the 20-batch exploration.
@@ -940,7 +940,7 @@ describe("T3 explorationReducer and ExplorationCoordinator", () => {
         excludeArtists: req.excludeArtists,
         excludeRecordings: req.excludeRecordings,
         excludeVersions: req.excludeVersions,
-        limit: 8,
+        maxResults: 8,
       }),
     });
 

@@ -407,6 +407,10 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
     expect(getTextContent(actionsPanel1)).toContain("Angel");
     expect(getTextContent(actionsPanel1)).toContain("Tanda 1");
     expect(getTextContent(actionsPanel1)).toContain("A partir de: Teardrop · Massive Attack");
+    const recHeader = findHostNodes(actionsPanel1, (n) => n.tag === "div" && n.props.className === "graph-song-header")[0];
+    expect(getTextContent(recHeader)).not.toContain("A partir de:");
+    const recCover = findHostNodes(recHeader, (n) => n.tag === "div" && String(n.props.className || "").includes("cover-frame"))[0];
+    expect((recCover.props.style as { width?: number; height?: number }).width).toBe(76);
 
     // Toggle "Elegir para ampliar" from the graph panel -> updates shared selection state.
     const graphCheck = findHostNodes(actionsPanel1, (n) => n.tag === "input" && n.props.type === "checkbox")[0];
@@ -446,12 +450,28 @@ describe("T5 GraphExplorer cumulative and batch-detail views", () => {
       body: { resultId: fixtures.responses.batch2.recommendations[1].resultId, saved: true },
     });
 
-    // 3) Click an original song on the summary graph -> shows footnote, never offers expand checkbox/actions.
+    // 3) Click an original song on the summary graph -> shows song info & footnote, never offers expand checkbox/actions.
     await selectGraphNode(`recording:${fixtures.originals[0].id}`);
     expect(text()).toContain("Reckoner · Radiohead · canción inicial");
     const panelForOriginal = graphActionsSection();
+    expect(getTextContent(panelForOriginal)).toContain("Reckoner");
+    expect(getTextContent(panelForOriginal)).toContain("Radiohead");
+    expect(getTextContent(panelForOriginal)).toContain("Lista raíz · Canción inicial");
+    expect(getTextContent(panelForOriginal)).toContain("Origen: tu lista raíz");
     expect(findHostNodes(panelForOriginal, (n) => n.tag === "input" && n.props.type === "checkbox")).toHaveLength(0);
     expect(findButtons(panelForOriginal, "Guardar")).toHaveLength(0);
+
+    // 3b) Clicking a root seed node inside Batch 1 detail also displays its song info without recommendation actions.
+    const batch1Selector = findHostNodes(tree(), (n) => n.tag === "select" && n.props.id === "focused-batch")[0];
+    const batch1Val = String(findHostNodes(batch1Selector, (n) => n.tag === "option")[1].props.value);
+    await focusBatchValue(batch1Val);
+    await selectGraphNode(`seed:${fixtures.originals[0].id}`);
+    const rootSeedPanel = graphActionsSection();
+    expect(getTextContent(rootSeedPanel)).toContain("Reckoner");
+    expect(getTextContent(rootSeedPanel)).toContain("Radiohead");
+    expect(getTextContent(rootSeedPanel)).toContain("Lista raíz · Canción inicial");
+    expect(findHostNodes(rootSeedPanel, (n) => n.tag === "input" && n.props.type === "checkbox")).toHaveLength(0);
+    expect(findButtons(rootSeedPanel, "Guardar")).toHaveLength(0);
 
     // 4) Switch to Batch 2 detail and click seed:rec1 (originated in Batch 1) -> keeps Batch 1 requestId/resultId & preserves rec2 selection.
     const selector = findHostNodes(tree(), (n) => n.tag === "select" && n.props.id === "focused-batch")[0];

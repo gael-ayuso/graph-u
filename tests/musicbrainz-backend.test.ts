@@ -2,13 +2,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MusicBrainzError, recommendSongs, searchSongs } from "@/lib/musicbrainz";
 import { POST } from "@/app/api/recommendations/route";
 
-const { getCurrentUserProfile, recordRecommendations } = vi.hoisted(() => ({
+const { getCurrentUserProfile, recordRecommendations, findPreferences } = vi.hoisted(() => ({
   getCurrentUserProfile: vi.fn().mockResolvedValue(null),
   recordRecommendations: vi.fn(),
+  findPreferences: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/lib/users/current-user", () => ({ getCurrentUserProfile }));
 vi.mock("@/lib/recommendation-actions", () => ({ recordRecommendations }));
+vi.mock("@/lib/db", () => ({ getDb: () => ({ userPreferences: { findUnique: findPreferences } }) }));
 
 const fetchMock = vi.fn();
 vi.stubGlobal("fetch", fetchMock);
@@ -68,6 +70,7 @@ describe("GraphU backend client", () => {
     fetchMock.mockResolvedValueOnce(json({ seedTags: [], recommendations: [], seedResults: [], graph: { nodes: [], edges: [] } }));
     await recommendSongs([seed], [artistId], {
       limit: 15,
+      discoveryMode: "adventurous",
       excludeRecordings: [recordingId],
       excludeVersions: [{ artistId, title: "Echoes" }],
     });
@@ -76,6 +79,7 @@ describe("GraphU backend client", () => {
       seeds: [seed],
       excludeArtists: [artistId],
       limit: 15,
+      discoveryMode: "adventurous",
       excludeRecordings: [recordingId],
       excludeVersions: [{ artistId, title: "Echoes" }],
     });
@@ -87,6 +91,7 @@ describe("recommendations endpoint", () => {
     fetchMock.mockReset();
     getCurrentUserProfile.mockReset().mockResolvedValue(null);
     recordRecommendations.mockReset();
+    findPreferences.mockReset().mockResolvedValue(null);
   });
 
   const post = (body: unknown) =>
@@ -262,7 +267,7 @@ describe("recommendations endpoint", () => {
       graph: { nodes: [], edges: [] },
     };
 
-    // 1) Legacy payload: forwards only seeds & excludeArtists, records effective defaults (limit: 10, empty arrays)
+    // Legacy payloads use the saved profile mode, falling back to balanced.
     fetchMock.mockResolvedValueOnce(json(backendData));
     recordRecommendations.mockResolvedValueOnce({ ...backendData, requestId: "req-1" });
 
@@ -275,6 +280,8 @@ describe("recommendations endpoint", () => {
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       seeds: [seed],
       excludeArtists: [artistId],
+      discoveryMode: "balanced",
+      limit: 10, preferredTags: [], allowExplicit: true,
     });
     expect(recordRecommendations).toHaveBeenNthCalledWith(
       1,
@@ -282,7 +289,7 @@ describe("recommendations endpoint", () => {
       [seed],
       [artistId],
       backendData,
-      { limit: 10, excludeRecordings: [], excludeVersions: [] },
+      { limit: 10, excludeRecordings: [], excludeVersions: [], discoveryMode: "balanced", preferredTags: [], allowExplicit: true },
     );
     expect(await legacyRes.json()).toEqual({ ...backendData, requestId: "req-1" });
 
@@ -305,11 +312,81 @@ describe("recommendations endpoint", () => {
       backendData,
       {
         limit: 12,
+        discoveryMode: "balanced",
+        preferredTags: [], allowExplicit: true,
         excludeRecordings: [recordingId],
         excludeVersions: [{ artistId, title: "Echoes" }],
       },
     );
     expect(await extendedRes.json()).toEqual({ ...backendData, requestId: "req-2" });
+  });
+
+  it.each(["conservative", "balanced", "adventurous"])("applies and records the saved %s mode over client input", async (discoveryMode) => {
+    getCurrentUserProfile.mockResolvedValue({ id: "user-1" });
+    findPreferences.mockResolvedValue({ settings: { discoveryMode } });
+    const data = { recommendations: [], seedTags: [], seedResults: [], graph: { nodes: [], edges: [] } };
+    fetchMock.mockResolvedValueOnce(json(data));
+    recordRecommendations.mockResolvedValueOnce(data);
+
+    expect((await post({ seeds: [seed], discoveryMode: "client-value" })).status).toBe(200);
+    expect(findPreferences).toHaveBeenCalledWith({ where: { userId: "user-1" } });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ seeds: [seed], excludeArtists: [], discoveryMode, limit: 10, preferredTags: [], allowExplicit: true });
+    expect(recordRecommendations).toHaveBeenCalledWith("user-1", [seed], [], data,
+      { limit: 10, excludeRecordings: [], excludeVersions: [], discoveryMode, preferredTags: [], allowExplicit: true });
+  });
+
+  it("falls back to balanced for invalid saved modes and never loads a guest profile", async () => {
+    const data = { recommendations: [] };
+    fetchMock.mockResolvedValueOnce(json(data));
+    await post({ seeds: [seed], discoveryMode: "adventurous" });
+    expect(findPreferences).not.toHaveBeenCalled();
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("discoveryMode");
+
+    getCurrentUserProfile.mockResolvedValue({ id: "user-1" });
+    findPreferences.mockResolvedValue({ settings: { discoveryMode: "invalid" } });
+    fetchMock.mockResolvedValueOnce(json(data));
+    recordRecommendations.mockResolvedValueOnce(data);
+    expect((await post({ seeds: [seed] })).status).toBe(200);
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).discoveryMode).toBe("balanced");
+  });
+
+  it.each([
+    [{}, 18],
+    [{ limit: 24 }, 24],
+    [{ maxResults: 7 }, 7],
+    [{ limit: 24, maxResults: 12 }, 12],
+    [{ limit: 3, maxResults: 12 }, 3],
+  ])("resolves saved and explicit limits within exploration capacity: %j", async (options, expectedLimit) => {
+    getCurrentUserProfile.mockResolvedValue({ id: "user-1" });
+    findPreferences.mockResolvedValue({ settings: { defaultLimit: 18, preferredTags: ["jazz", "soul"], allowExplicit: false, discoveryMode: "adventurous" } });
+    const data = { recommendations: [], seedTags: [], seedResults: [], graph: { nodes: [], edges: [] } };
+    fetchMock.mockResolvedValueOnce(json(data));
+    recordRecommendations.mockResolvedValueOnce(data);
+    const response = await post({ seeds: [seed], ...options, preferredTags: ["spoof"], allowExplicit: true, discoveryMode: "conservative" });
+    expect(response.status).toBe(200);
+    const backendBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(backendBody).toMatchObject({ limit: expectedLimit, preferredTags: ["jazz", "soul"], allowExplicit: false, discoveryMode: "adventurous" });
+    expect(backendBody).not.toHaveProperty("maxResults");
+    expect(recordRecommendations).toHaveBeenCalledWith("user-1", [seed], [], data, expect.objectContaining({
+      limit: expectedLimit, preferredTags: ["jazz", "soul"], allowExplicit: false, discoveryMode: "adventurous",
+    }));
+  });
+
+  it("uses guest defaults and ignores spoofed profile preferences", async () => {
+    fetchMock.mockResolvedValueOnce(json({ recommendations: [] }));
+    expect((await post({ seeds: [seed], maxResults: 30, preferredTags: ["spoof"], allowExplicit: false })).status).toBe(200);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.limit ?? 10).toBe(10);
+    expect(body.allowExplicit ?? true).toBe(true);
+    expect(body.preferredTags ?? []).toEqual([]);
+    expect(findPreferences).not.toHaveBeenCalled();
+    expect(recordRecommendations).not.toHaveBeenCalled();
+  });
+
+  it.each([0, -1, 31, 1.5, "10", true, null])("rejects invalid maxResults %j before auth or backend", async (maxResults) => {
+    expect((await post({ seeds: [seed], maxResults })).status).toBe(400);
+    expect(getCurrentUserProfile).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("propagates MusicBrainzError status, maps unknown failures to 502, and rethrows Next.js control-flow errors", async () => {

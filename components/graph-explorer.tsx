@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Network, Node, Options } from "react-vis-graph-wrapper";
 import dynamic from "next/dynamic";
 import type { GraphNode } from "@/lib/musicbrainz-types";
@@ -54,6 +54,12 @@ const LEGEND: [GraphNode["type"], string][] = [["seed", "Tu canción"], ["tag", 
 
 function percent(score?: number) {
   return score === undefined ? "" : `${Math.round(score * 100)}% parecido`;
+}
+
+function formatDuration(milliseconds: number | null) {
+  if (!milliseconds) return "";
+  const seconds = Math.floor(milliseconds / 1_000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 type GraphView = "free" | "hierarchical";
@@ -126,11 +132,11 @@ const OPTIONS = {
   edges: {
     width: 1.2,
     color: { color: COLORS.cream, highlight: COLORS.seed, hover: COLORS.cream, inherit: false, opacity: 0.35 },
-    arrows: { to: { enabled: true, scaleFactor: 0.35 } },
+    arrows: { to: { enabled: false } },
     smooth: { enabled: true, type: "continuous", roundness: 0.15 },
     selectionWidth: 1.5,
   },
-  interaction: { hover: true, tooltipDelay: 80, dragNodes: true, dragView: true, zoomView: true, keyboard: { enabled: true, bindToWindow: false }, hideEdgesOnDrag: false },
+  interaction: { navigationButtons: true, hover: true, tooltipDelay: 80, dragNodes: true, dragView: true, zoomView: true, keyboard: { enabled: true, bindToWindow: false }, hideEdgesOnDrag: false },
 } satisfies Options;
 
 const HIERARCHICAL_OPTIONS: Options = {
@@ -138,7 +144,7 @@ const HIERARCHICAL_OPTIONS: Options = {
   autoResize: true,
   layout: { hierarchical: { direction: "LR", sortMethod: "directed", levelSeparation: 230, nodeSpacing: 64 } },
   physics: false,
-  edges: { color: { color: COLORS.olive, highlight: COLORS.seed }, arrows: { to: { enabled: true, scaleFactor: 0.4 } }, smooth: { enabled: true, type: "cubicBezier", forceDirection: "horizontal", roundness: 0.4 } },
+  edges: { color: { color: COLORS.olive, highlight: COLORS.seed }, arrows: { to: { enabled: false } }, smooth: { enabled: true, type: "cubicBezier", forceDirection: "horizontal", roundness: 0.4 } },
   interaction: OPTIONS.interaction,
 };
 
@@ -154,9 +160,10 @@ function serverMotionSnapshot() { return true; }
 export function GraphExplorer() {
   const { state, select } = useRecommendationExploration();
   const networkRef = useRef<Network | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<GraphView>("free");
   const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot, serverMotionSnapshot);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
   const motionEnabled = view === "free" && !paused && !reducedMotion;
   const options = useMemo<Options>(() => view === "hierarchical"
     ? HIERARCHICAL_OPTIONS
@@ -204,8 +211,109 @@ export function GraphExplorer() {
       edges: projection.graph.edges.map(({ id, from, to }) => styleEdge({ id, from, to })),
     };
   }, [batch, data, seeds, projection.graph, view, selectedId, detailById, summaryById]);
+  // Distribución radial suave: canción principal al centro y las demás
+  // alrededor en anillos escalonados, con espacio para los títulos.
+  // No se fijan los nodos: se pueden arrastrar y mover con los controles.
+  const arrangedGraph = useMemo(() => {
+    if (!graph || view !== "free") return graph;
+    const nodes = graph.nodes;
+    const seedIndex = nodes.findIndex((node) => String(node.id).startsWith("seed:"));
+    const centerIndex = seedIndex >= 0 ? seedIndex : 0;
+    const others = nodes.map((node, index) => ({ node, index }))
+      .filter(({ index }) => index !== centerIndex);
+    const positions = new Map<number, { x: number; y: number }>();
+    positions.set(centerIndex, { x: 0, y: 0 });
+    let placed = 0;
+    let ring = 1;
+    while (placed < others.length) {
+      const radius = 245 * ring;
+      // Espaciado generoso entre tarjetas, sin cuadrícula rígida.
+      const capacity = Math.max(5, Math.floor((2 * Math.PI * radius) / 275));
+      const count = Math.min(capacity, others.length - placed);
+      const offset = ring % 2 === 0 ? Math.PI / count : -Math.PI / 2;
+      for (let slot = 0; slot < count; slot++) {
+        const angle = offset + (2 * Math.PI * slot) / count;
+        positions.set(others[placed + slot].index, {
+          x: Math.round(Math.cos(angle) * radius),
+          y: Math.round(Math.sin(angle) * radius * 0.84),
+        });
+      }
+      placed += count;
+      ring++;
+    }
+    return {
+      ...graph,
+      nodes: nodes.map((node, index) => ({ ...node, ...positions.get(index) })),
+    };
+  }, [graph, view]);
   const events = useMemo(() => ({ select: ({ nodes }: { nodes: string[] }) => setSelection({ key: requestKey, id: nodes[0] ?? "" }) }), [requestKey]);
   const handleNetwork = useCallback((network: Network) => { guardVisNetwork(network); networkRef.current = network; }, []);
+  // Paredes suaves: frenan gradualmente antes del borde, sin teletransportar
+  // nodos ni recentrar la cámara. Solo actúan con movimiento activo.
+  useEffect(() => {
+    if (!motionEnabled || !arrangedGraph?.nodes.length) return;
+
+    type MovingNetwork = Network & {
+      physics?: { physicsBody?: { velocities?: Record<string, { x: number; y: number }> } };
+    };
+
+    const contain = () => {
+      const network = networkRef.current as MovingNetwork | null;
+      const canvas = canvasRef.current;
+      const velocities = network?.physics?.physicsBody?.velocities;
+      if (!network || !canvas || !velocities) return;
+
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (width < 240 || height < 220) return;
+
+      const marginX = Math.min(110, width * 0.24);
+      const marginY = Math.min(70, height * 0.22);
+      const left = marginX;
+      const right = width - marginX;
+      const top = marginY;
+      const bottom = height - marginY;
+      // Zona de frenado: comienza antes del borde para evitar impactos bruscos.
+      const slowZone = Math.min(100, (right - left) * 0.25, (bottom - top) * 0.25);
+      const positions = network.getPositions(arrangedGraph.nodes.map((node) => String(node.id)));
+      const scale = network.getScale();
+      if (!Number.isFinite(scale) || scale <= 0) return;
+
+      for (const [id, position] of Object.entries(positions)) {
+        const velocity = velocities[id];
+        if (!velocity) continue;
+        const screen = network.canvasToDOM(position);
+
+        // Las velocidades del motor están en unidades de grafo, no píxeles.
+        // Aplicamos una fuerza gradual hacia dentro y amortiguamos la salida.
+        const steer = (coordinate: number, low: number, high: number, speed: number) => {
+          const distance = coordinate < low + slowZone
+            ? coordinate - (low + slowZone)
+            : coordinate > high - slowZone
+              ? coordinate - (high - slowZone)
+              : 0;
+          if (distance === 0) return speed;
+          const strength = Math.min(1, Math.abs(distance) / slowZone);
+          const outward = distance < 0 ? speed < 0 : speed > 0;
+          const slowed = outward ? speed * (1 - 0.85 * strength) : speed;
+          // En la pared, anulamos la velocidad hacia afuera y damos
+          // una pequeña velocidad hacia el interior, sin saltar de posición.
+          const beyond = coordinate < low ? coordinate - low : coordinate > high ? coordinate - high : 0;
+          if (beyond !== 0) {
+            return -Math.sign(beyond) * Math.min(5 / scale, 1.2 + Math.abs(beyond) * 0.06 / scale);
+          }
+          return slowed - Math.sign(distance) * strength * 0.42 / scale;
+        };
+
+        velocity.x = steer(screen.x, left, right, velocity.x);
+        velocity.y = steer(screen.y, top, bottom, velocity.y);
+      }
+    };
+
+    const interval = window.setInterval(contain, 16);
+    return () => window.clearInterval(interval);
+  }, [motionEnabled, arrangedGraph]);
+
   function centerGraph() {
     const network = networkRef.current;
     if (!network || !(network as Network & VisNetworkLike).renderer) return;
@@ -220,7 +328,16 @@ export function GraphExplorer() {
   const available = batch
     ? batch.response.recommendations.map((rec) => ({ recommendation: rec, batch }))
     : state.batches.flatMap((entry) => entry.response.recommendations.map((rec) => ({ recommendation: rec, batch: entry })));
+  const rootOptions = batch
+    ? batch.inputs.filter((song) => !state.songsById[song.id]?.batchId)
+    : state.originals;
   const active = selectedId ? (selectedRecommendation && selectedBatch ? { recommendation: selectedRecommendation, batch: selectedBatch } : undefined) : available[0];
+  const activeOriginal = !active && selectedSongId && selectedEntry && !selectedEntry.batchId
+    ? selectedEntry.song
+    : !active && selectedSongId
+      ? rootOptions.find((song) => song.id === selectedSongId)
+      : undefined;
+  const panelSong = active?.recommendation.song ?? activeOriginal;
   const checked = !!active && state.selectedIds.includes(active.recommendation.song.id);
   const reasonText = selectedDetail && data ? (() => {
     const parents = (id: string) => data.graph.edges.filter((edge) => edge.to === id).map((edge) => edge.from);
@@ -231,6 +348,13 @@ export function GraphExplorer() {
     const song = state.songsById[reason.seedId]?.song;
     return song ? `${song.title} · ${song.artist}` : reason.seedId;
   }).join(", ");
+  const originalDetails = activeOriginal
+    ? [
+        activeOriginal.release && `Álbum: ${activeOriginal.release}`,
+        activeOriginal.duration ? `Duración: ${formatDuration(activeOriginal.duration)}` : "",
+        activeOriginal.comment,
+      ].filter(Boolean).join(" · ")
+    : "";
 
   return <>
     <ExplorationControls saved={saved ?? []} />
@@ -254,32 +378,64 @@ export function GraphExplorer() {
           <p id="graph-help">{view === "hierarchical" ? "Conexiones de izquierda a derecha, sin repulsión." : reducedMotion ? "Movimiento reducido activo. Puedes mover cada nodo manualmente." : "Arrastra los nodos para separarlos. Desplaza el fondo y usa el zoom para explorar."}</p>
         </div>
         <div className="graph-interactive">
-          {available.length > 0 && <section className="graph-song-actions" aria-labelledby="graph-song-actions-title">
-            <h3 id="graph-song-actions-title">Guardar y evaluar</h3>
+          {(available.length > 0 || rootOptions.length > 0) && <section className="graph-song-actions" aria-labelledby="graph-song-actions-title">
+            <h3 id="graph-song-actions-title">{activeOriginal ? "Canción inicial" : "Guardar y evaluar"}</h3>
             <p className="graph-action-help">Elige una canción aquí o pulsa un nodo del grafo.</p>
-            <label htmlFor="graph-action-song">Canción recomendada</label>
-            <select id="graph-action-song" value={active?.recommendation.song.id ?? ""} onChange={(event) => setSelection({ key: requestKey, id: `${batch ? (batch.inputs.some((song) => song.id === event.target.value) ? "seed" : "song") : "recording"}:${event.target.value}` })}>
-              {!active && <option value="">Elige una canción</option>}
+            <label htmlFor="graph-action-song">Canción del grafo</label>
+            <select
+              id="graph-action-song"
+              value={active?.recommendation.song.id ?? activeOriginal?.id ?? ""}
+              onChange={(event) => {
+                const id = event.target.value;
+                if (!id) {
+                  setSelection({ key: requestKey, id: "" });
+                  return;
+                }
+                const prefix = batch ? (batch.inputs.some((song) => song.id === id) ? "seed" : "song") : "recording";
+                setSelection({ key: requestKey, id: `${prefix}:${id}` });
+              }}
+            >
+              {!active && !activeOriginal && <option value="">Elige una canción</option>}
               {active && !available.some(({ recommendation }) => recommendation.song.id === active.recommendation.song.id) && <option value={active.recommendation.song.id}>{active.recommendation.song.title} · {active.recommendation.song.artist} · Tanda {state.batches.indexOf(active.batch) + 1}</option>}
-              {available.map(({ recommendation: rec, batch: owner }) => <option key={rec.song.id} value={rec.song.id}>{rec.song.title} · {rec.song.artist} · Tanda {state.batches.indexOf(owner) + 1}</option>)}
+              {available.length > 0 && <optgroup label="Recomendadas">
+                {available.map(({ recommendation: rec, batch: owner }) => <option key={rec.song.id} value={rec.song.id}>{rec.song.title} · {rec.song.artist} · Tanda {state.batches.indexOf(owner) + 1}</option>)}
+              </optgroup>}
+              {rootOptions.length > 0 && <optgroup label="Lista raíz">
+                {rootOptions.map((song) => <option key={`root:${song.id}`} value={song.id}>{song.title} · {song.artist} · Lista raíz</option>)}
+              </optgroup>}
             </select>
-            {active && <>
+            {panelSong && <>
               <div className="graph-song-header">
                 <CoverArt
-                  src={resolveSongCoverUrl(active.recommendation.song)}
-                  alt={`Portada de ${active.recommendation.song.title}`}
-                  size={52}
-                  label={active.recommendation.song.artist}
+                  src={resolveSongCoverUrl(panelSong)}
+                  alt={`Portada de ${panelSong.title}`}
+                  size={76}
+                  label={panelSong.artist}
                 />
-                <div className="song-info"><h4>{active.recommendation.song.title}</h4><p>{active.recommendation.song.artist} · Tanda {state.batches.indexOf(active.batch) + 1}{batch && active.batch.id === batch.id ? ` · ${percent(active.recommendation.score)}` : ""}</p><p className="song-detail">A partir de: {originText}</p></div>
+                <div className="song-info">
+                  <h4>{panelSong.title}</h4>
+                  <p className="graph-song-artist">{panelSong.artist}</p>
+                  {active ? (
+                    <p className="graph-song-meta">Tanda {state.batches.indexOf(active.batch) + 1}{batch && active.batch.id === batch.id ? ` · ${percent(active.recommendation.score)}` : ""}</p>
+                  ) : (
+                    <p className="graph-song-meta">Lista raíz · Canción inicial</p>
+                  )}
+                </div>
               </div>
-              <label className="exploration-check"><input type="checkbox" checked={checked} disabled={!!state.pending || (!checked && state.selectedIds.length >= SELECTION_CAP)} onChange={(event) => select(active.recommendation.song.id, event.target.checked)} /> <span>Elegir para ampliar</span></label>
-              <RecommendationActions recommendation={active.recommendation} requestId={active.batch.requestId} showStatus />
-              <p className="graph-action-help">Guardar añade la canción a tus guardadas. La evaluación se puede cambiar o quitar pulsando de nuevo.</p>
+              {active ? <>
+                {originText && <p className="graph-song-origin"><strong>A partir de:</strong> {originText}</p>}
+                <label className="exploration-check"><input type="checkbox" checked={checked} disabled={!!state.pending || (!checked && state.selectedIds.length >= SELECTION_CAP)} onChange={(event) => select(active.recommendation.song.id, event.target.checked)} /> <span>Elegir para ampliar</span></label>
+                <RecommendationActions recommendation={active.recommendation} requestId={active.batch.requestId} showStatus />
+                <p className="graph-action-help">Guardar añade la canción a tus guardadas. La evaluación se puede cambiar o quitar pulsando de nuevo.</p>
+              </> : <>
+                {originalDetails && <p className="graph-song-origin">{originalDetails}</p>}
+                <p className="graph-song-origin"><strong>Origen:</strong> tu lista raíz. Se usó como punto de partida para generar recomendaciones.</p>
+                <a className="song-title graph-song-mb-link" href={`https://musicbrainz.org/recording/${panelSong.id}`} target="_blank" rel="noreferrer">Ver en MusicBrainz<span className="sr-only"> (nueva pestaña)</span></a>
+              </>}
             </>}
           </section>}
-          <div className="graph-canvas" role="group" aria-roledescription="grafo interactivo" aria-describedby="graph-help" aria-label={batch ? `Grafo de detalle de la tanda ${state.batches.indexOf(batch) + 1}` : `Grafo de la exploración completa con ${graph.nodes.length} canciones`}>
-            <VisGraph key={`${requestKey}:${view}`} graph={graph} options={options} events={events} getNetwork={handleNetwork} />
+          <div ref={canvasRef} className="graph-canvas" role="group" aria-roledescription="grafo interactivo" aria-describedby="graph-help" aria-label={batch ? `Grafo de detalle de la tanda ${state.batches.indexOf(batch) + 1}` : `Grafo de la exploración completa con ${graph.nodes.length} canciones`}>
+            <VisGraph key={`${requestKey}:${view}`} graph={arrangedGraph ?? graph} options={options} events={events} getNetwork={handleNetwork} />
           </div>
         </div>
       </> : <p className="song-empty">No hay nodos para mostrar.</p>}

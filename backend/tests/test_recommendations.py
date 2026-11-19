@@ -175,6 +175,48 @@ def test_artist_exploration_never_promotes_a_distant_match(client, monkeypatch):
         assert rec["score"] in {0.95, 0.94}
 
 
+@pytest.mark.parametrize("mode,expected_artist,expected_score", [
+    ("conservative", 20, 0.95), ("balanced", 20, 0.95), ("adventurous", 21, 0.75),
+])
+def test_discovery_mode_changes_selection_without_changing_affinity(client, monkeypatch, mode, expected_artist, expected_score):
+    seed = uid(1)
+    monkeypatch.setattr(main, "Random", lambda: Random(1))
+    monkeypatch.setattr(mb, "recording_profile", lambda _: (song_dict(seed, "Seed", "Seed Artist"), {}, uid(10)))
+    monkeypatch.setattr(mb, "similar_artists", lambda _: {
+        uid(i): (artist_dict(uid(i), f"Artist {i}"), score)
+        for i, score in [(20, 0.95), (21, 0.75), (22, 0.2), (23, 1.0)]
+    })
+    monkeypatch.setattr(mb, "album_tracks", lambda aid: [song_dict(uid(int(UUID(aid)) + 100), aid, aid)])
+    response = client.post("/api/recommendations", json={
+        "seeds": [seed], "limit": 1, "discoveryMode": mode, "excludeArtists": [uid(23)],
+    })
+    assert response.status_code == 200
+    data = response.json()
+    rec = data["recommendations"][0]
+    assert rec["artistId"] == uid(expected_artist)
+    assert rec["score"] == expected_score
+    assert rec["reasons"] == [{"seedId": seed, "score": expected_score, "sharedTags": [], "signals": ["listeners"]}]
+    assert f"song:{rec['song']['id']}" in reachable_from(data["graph"], f"seed:{seed}")
+
+
+def test_discovery_mode_controls_direct_track_exploration():
+    artist = uid(20)
+    hints = {artist: [(score, song_dict(uid(i), str(i), "Candidate"))
+                      for i, score in [(100, 0.95), (101, 0.75), (102, 0.2)]]}
+    for mode, expected in [("conservative", 100), ("balanced", 100), ("adventurous", 101)]:
+        tracks = main._tracks(artist, hints, {}, rng=Random(1), exploration_jitter=main.DISCOVERY_JITTER[mode])
+        assert tracks[0]["id"] == uid(expected)
+        assert tracks[-1]["id"] == uid(102)
+
+
+@pytest.mark.parametrize("mode", [None, "unknown", 1, [], {}])
+def test_invalid_discovery_mode_is_rejected_before_querying(client, monkeypatch, mode):
+    calls = []
+    monkeypatch.setattr(mb, "recording_profile", lambda seed: calls.append(seed))
+    assert client.post("/api/recommendations", json={"seeds": [uid(1)], "discoveryMode": mode}).status_code == 422
+    assert calls == []
+
+
 def test_independent_seed_styles_round_robin_and_branch_graph(client, monkeypatch) -> None:
     s_rock, s_salsa = uid(1), uid(2)
     a_rock_seed, a_salsa_seed = uid(10), uid(20)

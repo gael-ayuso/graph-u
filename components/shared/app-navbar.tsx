@@ -8,7 +8,6 @@ import { GraphUUserButton } from "./graphu-user-button";
 
 const NAV_LINKS = [
   { href: "/explorar", label: "Explorar" },
-  { href: "/demo", label: "Demo" },
   { href: "/favoritos", label: "Favoritos" },
   { href: "/playlists", label: "Playlists" },
   { href: "/perfil", label: "Perfil" },

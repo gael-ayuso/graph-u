@@ -1,22 +1,26 @@
 import time
 from collections import Counter
+from collections.abc import Callable
 from random import Random
 from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, StrictBool, field_validator
 
 from . import musicbrainz as mb
+from .content import explicit_metadata
 from .graph import build_graph
 from .recommender import distribute, hybrid, interleave, rank
 
 app = FastAPI(title="GraphU API", version="0.1.0")
 RECOMMENDATION_SECONDS = 45.0
-# Solo intercambia candidatos cuya afinidad difiere como máximo en 0.1.
+# Margen del modo equilibrado: intercambia diferencias de afinidad de hasta 0.1.
 EXPLORATION_JITTER = 0.05
-# Selection margins preserve the balanced behavior and original affinity scores.
+# Margen de selección: no altera afinidades ni permite reordenar diferencias
+# mayores que el doble del margen. Equilibrado conserva el comportamiento previo.
 DISCOVERY_JITTER = {"conservative": 0.0, "balanced": EXPLORATION_JITTER, "adventurous": 0.15}
+PREFERRED_TAG_BONUS = 0.15
 
 
 @app.get("/health")
@@ -75,6 +79,8 @@ class ExcludedVersion(BaseModel):
 class RecommendationRequest(BaseModel):
     seeds: list[UUID] = Field(min_length=1, max_length=10)
     discovery_mode: Literal["conservative", "balanced", "adventurous"] = Field("balanced", alias="discoveryMode")
+    allow_explicit: StrictBool = Field(True, alias="allowExplicit")
+    preferred_tags: list[str] = Field(default_factory=list, max_length=30, alias="preferredTags")
     limit: int = Field(10, ge=1, le=30)
     exclude_artists: list[UUID] = Field(default_factory=list, max_length=200, alias="excludeArtists")
     exclude_recordings: list[UUID] = Field(default_factory=list, max_length=200, alias="excludeRecordings")
@@ -94,26 +100,42 @@ class RecommendationRequest(BaseModel):
             raise ValueError("Limit must be an integer")
         return value
 
+    @field_validator("preferred_tags", mode="before")
+    @classmethod
+    def validate_tags(cls, value):
+        if not isinstance(value, list) or len(value) > 30:
+            raise ValueError("Preferred tags must be a list of at most 30 tags")
+        if any(not isinstance(tag, str) or not 1 <= len(tag.strip()) <= 40 for tag in value):
+            raise ValueError("Each preferred tag must contain 1 to 40 characters")
+        return list(dict.fromkeys(tag.strip().casefold() for tag in value))
 
-def _eligible_tracks(artist_id: str, songs: list[dict], excluded_ids: set[str], excluded_versions: set[tuple[str, str]]) -> list[dict]:
+
+def _eligible_tracks(artist_id: str, songs: list[dict], excluded_ids: set[str], excluded_versions: set[tuple[str, str]], *,
+                     track_allowed: Callable[[dict], bool] | None = None, limit: int | None = None) -> list[dict]:
     unique = {}
     artist_key = _canonical_uuid(artist_id)
     for song in songs:
         title = song["title"].strip().casefold()
         song_id = _canonical_uuid(song["id"])
-        if song_id not in excluded_ids and (artist_key, title) not in excluded_versions:
-            unique.setdefault(title, {**song, "id": song_id})
+        if song_id not in excluded_ids and (artist_key, title) not in excluded_versions and title not in unique:
+            if track_allowed is not None and not track_allowed(song):
+                continue
+            unique[title] = {**song, "id": song_id}
+            if limit is not None and len(unique) >= limit:
+                break
     return list(unique.values())
 
 
 def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]], catalog: dict[str, list[dict] | None],
             allow_album: bool = True, excluded_ids: set[str] = frozenset(),
             excluded_versions: set[tuple[str, str]] = frozenset(), *, rng: Random,
-            exploration_jitter: float = EXPLORATION_JITTER) -> list[dict]:
+            exploration_jitter: float = EXPLORATION_JITTER,
+            track_allowed: Callable[[dict], bool] | None = None) -> list[dict]:
     """Count only eligible, distinct hints before deciding whether to query albums."""
     songs = _eligible_tracks(artist_id, [song for _, song in sorted(hints.get(artist_id, []),
                              key=lambda h: -(h[0] + rng.uniform(-exploration_jitter, exploration_jitter)))],
-                             excluded_ids, excluded_versions)
+                             excluded_ids, excluded_versions, track_allowed=track_allowed,
+                             limit=2 if track_allowed is not None else None)
     if len(songs) < 2 and allow_album:
         if artist_id not in catalog:
             catalog[artist_id] = mb._optional(lambda: mb.album_tracks(artist_id), None)
@@ -121,23 +143,35 @@ def _tracks(artist_id: str, hints: dict[str, list[tuple[float, dict]]], catalog:
         album = list(catalog[artist_id] or [])
         rng.shuffle(album)
         songs += album
-    return _eligible_tracks(artist_id, songs, excluded_ids, excluded_versions)
+    return _eligible_tracks(artist_id, songs, excluded_ids, excluded_versions, track_allowed=track_allowed,
+                            limit=2 if track_allowed is not None else None)
 
 
 def _candidates(song: dict, tags: dict, artist_id: str | None, excluded: set[str], seed_ids: set[str], deadline: float, rng: Random,
-                exploration_jitter: float = EXPLORATION_JITTER) -> dict:
+                exploration_jitter: float = EXPLORATION_JITTER, preferred_tags: tuple[str, ...] = ()) -> dict:
     """Un perfil y cuatro señales independientes para esta canción."""
     top_tags = tuple(tag for tag, _ in Counter(tags).most_common(3))
     by_tags, source_failed, search_limited = [], False, False
-    if top_tags and time.monotonic() < deadline:
+    profiles = {}
+    seed_profiles = {}
+    queries = [(top_tags, True)] if top_tags else []
+    if preferred_tags and not set(preferred_tags).issubset(top_tags):
+        queries.append((preferred_tags, False))
+    for query, seed_query in queries:
+        if time.monotonic() >= deadline:
+            search_limited = True
+            break
         try:
-            candidates = [({**artist, "id": _canonical_uuid(artist["id"])}, artist_tags)
-                          for artist, artist_tags in mb.artists_by_tags(top_tags)]
-            by_tags = rank([tags], candidates, exclude=excluded)
+            for artist, artist_tags in mb.artists_by_tags(query):
+                key = _canonical_uuid(artist["id"])
+                profiles[key] = ({**artist, "id": key}, artist_tags)
+                if seed_query:
+                    seed_profiles[key] = profiles[key]
         except mb.MusicBrainzError:
             source_failed = True  # Las otras señales todavía pueden recomendar.
-    elif top_tags:
-        search_limited = True
+    # Preference profiles only affect selection priority. Keep the TF-IDF corpus
+    # unchanged so unrelated preferred genres cannot change seed affinities.
+    by_tags = rank([tags], list(seed_profiles.values()), exclude=excluded)
     signals = {"songs": {}, "listeners": {}, "collab": {}}
     hints = {}
     if time.monotonic() < deadline:
@@ -162,7 +196,14 @@ def _candidates(song: dict, tags: dict, artist_id: str | None, excluded: set[str
                              for key, (artist, score) in found.items()}
     artists = hybrid(by_tags, signals, exclude=excluded)
     # Variar la selección sin cambiar las puntuaciones ni sus explicaciones.
-    artists.sort(key=lambda candidate: -(candidate[1] + rng.uniform(-exploration_jitter, exploration_jitter)))
+    preferred = set(preferred_tags)
+
+    def priority(candidate):
+        profile_tags = profiles.get(candidate[0]["id"], ({}, {}))[1]
+        bonus = PREFERRED_TAG_BONUS if preferred.intersection(tag.casefold() for tag in profile_tags) else 0
+        return -(candidate[1] + bonus + rng.uniform(-exploration_jitter, exploration_jitter))
+
+    artists.sort(key=priority)
     return {"song": song, "artists": artists, "byId": {a[0]["id"]: a for a in artists}, "hints": hints,
             "sourceFailed": source_failed, "tracksFailed": False, "searchLimited": search_limited,
             "prepared": True, "exhausted": False, "yielded": False}
@@ -185,7 +226,8 @@ def _reason(branch: dict, song: dict, artist_id: str) -> dict | None:
 
 
 def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int, catalog_limit: int, deadline: float, rng: Random,
-                excluded_versions: set[tuple[str, str]] = frozenset(), exploration_jitter: float = EXPLORATION_JITTER):
+                excluded_versions: set[tuple[str, str]] = frozenset(), exploration_jitter: float = EXPLORATION_JITTER,
+                track_allowed: Callable[[dict], bool] | None = None):
     artists = branch["artists"]
     queries = 0
     # Cargar solo los lotes que se consumen y seguir con otros artistas si faltan pistas.
@@ -197,14 +239,16 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
             # Las pistas de álbum solo tienen una razón propia si hay etiquetas u otra señal.
             allow_album = bool(shared or any(name != "songs" for name in signals))
             eligible_hints = _eligible_tracks(artist["id"], [song for _, song in branch["hints"].get(artist["id"], [])],
-                                              seed_ids, excluded_versions)
+                                              seed_ids, excluded_versions, track_allowed=track_allowed,
+                                              limit=2 if track_allowed is not None else None)
             if allow_album and len(eligible_hints) < 2 and artist["id"] not in catalog:
                 if queries >= catalog_limit or time.monotonic() >= deadline:
                     allow_album = False
                     branch["searchLimited"] = True
                 else:
                     queries += 1
-            tracks = [song for song in _tracks(artist["id"], branch["hints"], catalog, allow_album, seed_ids, excluded_versions, rng=rng, exploration_jitter=exploration_jitter)
+            tracks = [song for song in _tracks(artist["id"], branch["hints"], catalog, allow_album, seed_ids, excluded_versions,
+                                              rng=rng, exploration_jitter=exploration_jitter, track_allowed=track_allowed)
                       if song["id"] not in seed_ids and _reason(branch, song, artist["id"]) is not None]
             if artist["id"] in catalog and catalog[artist["id"]] is None:
                 branch["tracksFailed"] = True
@@ -222,9 +266,31 @@ def _seed_queue(branch: dict, catalog: dict, seed_ids: set[str], batch_size: int
 
 def _branch_queue(branch: dict, excluded: set[str], seed_ids: set[str], catalog: dict, batch_size: int, catalog_limit: int, deadline: float, rng: Random,
                   excluded_versions: set[tuple[str, str]] = frozenset(), excluded_ids: set[str] = frozenset(),
-                  exploration_jitter: float = EXPLORATION_JITTER):
-    branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng, exploration_jitter))
-    yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng, excluded_versions, exploration_jitter)
+                  exploration_jitter: float = EXPLORATION_JITTER, preferred_tags: tuple[str, ...] = (),
+                  allow_explicit: bool = True, content_checks: dict[str, bool | None] | None = None):
+    branch.update(_candidates(branch["song"], branch["tags"], branch["artistId"], excluded, seed_ids, deadline, rng,
+                              exploration_jitter, preferred_tags))
+    checks = content_checks if content_checks is not None else {}
+
+    def track_allowed(song):
+        if explicit_metadata(song.get("comment")):
+            return False
+        song_id = _canonical_uuid(song["id"])
+        if song_id not in checks:
+            if time.monotonic() >= deadline:
+                branch["searchLimited"] = True
+                return False
+            try:
+                checks[song_id] = mb.recording_is_explicit(song_id)
+            except mb.MusicBrainzError:
+                checks[song_id] = None
+        if checks[song_id] is None:
+            branch["tracksFailed"] = True
+            return False
+        return not checks[song_id]
+
+    yield from _seed_queue(branch, catalog, seed_ids | excluded_ids, batch_size, catalog_limit, deadline, rng,
+                           excluded_versions, exploration_jitter, track_allowed if not allow_explicit else None)
 
 
 @app.post("/api/recommendations")
@@ -252,11 +318,14 @@ def recommend(body: RecommendationRequest):
                  "prepared": False, "searchLimited": False} for song, tags, artist in seeds
                 if song["id"] not in unavailable | deferred]
     catalog = {}
+    content_checks = {}
     batch_size = max(1, (body.limit + len(seeds) - 1) // len(seeds))
     # La API pública limita peticiones por segundo: no recorrer 100 catálogos vacíos
     # por semilla. La cuota separada evita que una semilla consuma la de las demás.
     catalog_limit = 100 if branches and mb.active_source() == "local_db" else max(1, 12 // len(seeds))
-    recommendations = distribute([_branch_queue(branch, excluded, seed_ids, catalog, batch_size, catalog_limit, deadline, rng, excluded_versions, excluded_ids, DISCOVERY_JITTER[body.discovery_mode])
+    recommendations = distribute([_branch_queue(branch, excluded, seed_ids, catalog, batch_size, catalog_limit, deadline, rng,
+                                               excluded_versions, excluded_ids, DISCOVERY_JITTER[body.discovery_mode],
+                                               tuple(body.preferred_tags), body.allow_explicit, content_checks)
                                   for branch in branches], body.limit)
     for rec in recommendations:
         # También reconocer las semillas que comparten un resultado ya elegido, sin duplicarlo.

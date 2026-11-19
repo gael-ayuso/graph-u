@@ -237,10 +237,10 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
       makeSong(300 + slot, { title: `Tail ${slot}` }, 72),
     );
 
-    const requests: { limit: number; excludeRecordings?: string[] }[] = [];
+    const requests: { maxResults: number; limit?: number; excludeRecordings?: string[] }[] = [];
     fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("/api/recommendations");
-      const body = JSON.parse(String(init?.body)) as { seeds: string[]; limit: number; excludeRecordings?: string[] };
+      const body = JSON.parse(String(init?.body)) as { seeds: string[]; maxResults: number; limit?: number; excludeRecordings?: string[] };
       requests.push(body);
 
       if (requests.length === 1) {
@@ -304,7 +304,7 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
     expect(text()).toContain("11 / 200 canciones");
     expect(text()).not.toContain("Bad Origin");
 
-    // Advance up to 200 songs: last step requests limit=9 (trailing space < 10) and reaches 200 / 200 cap.
+    // Advance up to 200 songs: last step requests maxResults=9 (remaining capacity) and reaches 200 / 200 cap.
     for (let step = 1; step <= 19; step++) {
       if (step > 1) {
         await choose(batchSongs[step - 2][0].title, false);
@@ -314,7 +314,9 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
       await reactTestRuntime.flush();
     }
 
-    expect(requests.at(-1)?.limit).toBe(9);
+    expect(requests[0].maxResults).toBe(30);
+    expect(requests.every((request) => request.limit === undefined)).toBe(true);
+    expect(requests.at(-1)?.maxResults).toBe(9);
     expect(text()).toContain("200 / 200 canciones");
     expect(text()).toContain("Límite alcanzado. Reinicia o reemplaza para explorar de nuevo.");
     expect(button("Otras desde las canciones iniciales").props.disabled).toBe(true);

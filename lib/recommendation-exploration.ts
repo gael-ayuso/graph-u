@@ -255,7 +255,7 @@ export function remainingCapacity(state: ExplorationState) { return Math.max(0, 
 export function selectedSongs(state: ExplorationState): ExplorationSong[] { return state.selectedIds.map((id) => state.songsById[id]).filter(Boolean); }
 export type ExplorationTransport = (request: ExplorationRequest, signal: AbortSignal) => Promise<unknown>;
 export async function fetchExploration(request: ExplorationRequest, signal: AbortSignal): Promise<unknown> {
-  const response = await fetch("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify({ seeds: request.seeds.map((s) => s.id), excludeArtists: request.excludeArtists, excludeRecordings: request.excludeRecordings, excludeVersions: request.excludeVersions, limit: request.limit }) });
+  const response = await fetch("/api/recommendations", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify({ seeds: request.seeds.map((s) => s.id), excludeArtists: request.excludeArtists, excludeRecordings: request.excludeRecordings, excludeVersions: request.excludeVersions, maxResults: request.limit }) });
   const body = await response.json().catch(() => null);
   if (!response.ok) throw new Error(body?.error || "No se pudieron generar recomendaciones.");
   return body;
@@ -333,7 +333,8 @@ export class ExplorationCoordinator {
     const entries = kind === "start" ? seeds.map((s) => ({ song: s, artistId: null, batchId: null })) : Object.values(this.state.songsById);
     const remaining = EXPLORATION_CAP - entries.length;
     if (remaining <= 0) return false;
-    const request: ExplorationRequest = freezeRequest({ kind, seeds: seeds.map((s) => ({ ...s })), excludeArtists: kind === "alternatives" ? [...new Set(entries.filter((entry) => entry.batchId && entry.artistId).map((entry) => entry.artistId!))] : [], excludeRecordings: entries.map((entry) => entry.song.id), excludeVersions: entries.filter((entry) => entry.artistId && entry.song.title.trim()).map((entry) => ({ artistId: entry.artistId!, title: entry.song.title })), limit: Math.min(10, remaining) });
+    // The request limit is a capacity ceiling; the server applies the saved default.
+    const request: ExplorationRequest = freezeRequest({ kind, seeds: seeds.map((s) => ({ ...s })), excludeArtists: kind === "alternatives" ? [...new Set(entries.filter((entry) => entry.batchId && entry.artistId).map((entry) => entry.artistId!))] : [], excludeRecordings: entries.map((entry) => entry.song.id), excludeVersions: entries.filter((entry) => entry.artistId && entry.song.title.trim()).map((entry) => ({ artistId: entry.artistId!, title: entry.song.title })), limit: Math.min(30, remaining) });
     const current = { controller: new AbortController(), revision: this.state.revision, scope: this.scope };
     this.active = current;
     const id = `exploration-${++this.serial}`;

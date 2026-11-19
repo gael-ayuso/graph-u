@@ -12,6 +12,7 @@ import httpx
 import psycopg
 
 from . import musicbrainz_db as mb_db
+from .content import explicit_metadata
 from .music_search import can_fuzz, fuzzy_query, rank_candidates
 
 logger = logging.getLogger(__name__)
@@ -259,6 +260,26 @@ def recording_profile(mbid: str) -> tuple[dict, dict[str, int], str | None]:
     )
 
 
+@lru_cache(maxsize=4096)
+def recording_is_explicit(mbid: str) -> bool:
+    """Only recording tags/disambiguation count; an unmarked recording is allowed.
+
+    Lookup failures propagate so a disabled explicit-content setting never
+    silently bypasses verification when the source is unavailable.
+    """
+    def local(dsn):
+        metadata = mb_db.recording_content_metadata(dsn, mbid)
+        if metadata is None:
+            raise MusicBrainzError("No se pudo verificar el contenido de la grabación.", 404)
+        return explicit_metadata(*metadata)
+
+    def remote():
+        recording = _get(f"/recording/{mbid}", inc="tags")
+        return explicit_metadata(recording.get("disambiguation"), _tags(recording))
+
+    return _with_local_fallback(local, remote)
+
+
 def _artists_by_tags_api(top_tags: tuple[str, ...]) -> list[tuple[dict, dict[str, int]]]:
     query = " OR ".join(f"tag:{_quote(tag)}" for tag in top_tags)
     return [({"id": a["id"], "name": a["name"]}, _tags(a)) for a in _get("/artist", query=query, limit=100)["artists"]]
@@ -277,15 +298,18 @@ def _album_tracks_api(artist_id: str) -> list[dict]:
     query = f"arid:{artist_id} AND primarytype:album AND status:official AND NOT comment:live"
     tracks, seen = [], set()
     for recording in _get("/recording", query=query, limit=15)["recordings"]:
-        if recording["title"].casefold() not in seen:
-            seen.add(recording["title"].casefold())
+        if recording["id"] not in seen:
+            seen.add(recording["id"])
             tracks.append(_song(recording))
     return tracks
 
 
 @lru_cache(maxsize=2048)
 def album_tracks(artist_id: str) -> list[dict]:
-    """Canciones de álbumes oficiales (sin directos) de un artista, sin títulos repetidos."""
+    """Grabaciones de álbumes oficiales, conservando versiones para filtrar contenido.
+
+    El consumidor deduplica títulos después de comprobar qué versión es elegible.
+    """
     return _with_local_fallback(
         lambda dsn: mb_db.album_tracks(dsn, artist_id),
         lambda: _album_tracks_api(artist_id),

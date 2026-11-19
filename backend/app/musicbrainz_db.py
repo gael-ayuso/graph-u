@@ -455,6 +455,27 @@ def recording_profile(dsn: str, mbid: str) -> tuple[dict, dict[str, int], str | 
         raise
 
 
+def recording_content_metadata(dsn: str, mbid: str) -> tuple[str | None, list[str]] | None:
+    """Keep recording content labels separate from the artist's genre tags."""
+    sql = """
+        SELECT r.comment, COALESCE(array_agg(t.name) FILTER (WHERE t.name IS NOT NULL), ARRAY[]::text[])
+        FROM musicbrainz.recording r
+        LEFT JOIN musicbrainz.recording_tag rt ON rt.recording = r.id AND rt.count > 0
+        LEFT JOIN musicbrainz.tag t ON t.id = rt.tag
+        WHERE r.gid = %(mbid)s::uuid
+           OR r.id = (SELECT new_id FROM musicbrainz.recording_gid_redirect WHERE gid = %(mbid)s::uuid)
+        GROUP BY r.id, r.comment
+    """
+    try:
+        with _connection(dsn).cursor() as cur:
+            cur.execute(sql, {"mbid": mbid})
+            row = cur.fetchone()
+        return (row[0], row[1]) if row else None
+    except psycopg.Error:
+        reset_connection()
+        raise
+
+
 def artists_by_tags(dsn: str, top_tags: tuple[str, ...]) -> list[tuple[dict, dict[str, int]]]:
     if not top_tags:
         return []
@@ -569,12 +590,10 @@ def album_tracks(dsn: str, artist_id: str) -> list[dict]:
     tracks: list[dict] = []
     seen: set[str] = set()
     for row in rows:
-        title_key = row[1].casefold()
-        if title_key not in seen:
-            seen.add(title_key)
+        recording_id = str(row[0])
+        if recording_id not in seen:
+            seen.add(recording_id)
             tracks.append(_song_row(*row))
-            if len(tracks) >= 15:
-                break
     return tracks
 
 

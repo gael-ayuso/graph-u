@@ -1,8 +1,9 @@
-﻿import type { ExcludedVersion, RecommendationResponse, Song } from "./musicbrainz-types";
+import type { ExcludedVersion, RecommendationResponse, Song } from "./musicbrainz-types";
 import { canonicalId, canonicalSong, validateExplorationResponse } from "./recommendation-exploration-validation";
 
 export const EXPLORATION_CAP = 200;
 export const SELECTION_CAP = 10;
+const SESSION_STORAGE_PREFIX = "graphu.exploration.v1:";
 export type ExplorationSong = { song: Song; artistId: string | null; batchId: string | null };
 export type ExplorationRequest = { kind: "start" | "expand" | "alternatives"; seeds: Song[]; excludeArtists: string[]; excludeRecordings: string[]; excludeVersions: ExcludedVersion[]; limit: number };
 export type ExplorationBatch = { id: string; inputs: Song[]; originBatchIds: string[]; newSongIds: string[]; response: RecommendationResponse; requestId?: string };
@@ -16,6 +17,203 @@ export type ExplorationAction =
   | { type: "select"; id: string; selected: boolean }
   | { type: "focus"; id: string | null }
   | { type: "cancel" } | { type: "reset" };
+
+type PersistedExploration = Pick<ExplorationState, "id" | "originals" | "songsById" | "batches" | "selectedIds" | "focusedBatchId">;
+
+function getSessionStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function isValidSongRecord(value: unknown): value is Song {
+  if (!isPlainObject(value)) return false;
+  return typeof value.id === "string"
+    && value.id.length > 0
+    && typeof value.title === "string"
+    && value.title.trim().length > 0
+    && typeof value.artist === "string"
+    && value.artist.trim().length > 0
+    && (value.release === null || typeof value.release === "string")
+    && (value.comment === null || typeof value.comment === "string")
+    && (value.duration === null || (typeof value.duration === "number" && Number.isFinite(value.duration)));
+}
+
+function maxSerialFrom(id: string, batches: ExplorationBatch[]): number {
+  let max = 0;
+  const check = (value: string) => {
+    const match = /-(\d+)$/.exec(value);
+    if (match) max = Math.max(max, Number(match[1]));
+  };
+  check(id);
+  for (const batch of batches) check(batch.id);
+  return max;
+}
+
+function readPersistedExploration(scope: string): { state: ExplorationState; serial: number } | null {
+  if (scope === "loading") return null;
+  const storage = getSessionStorage();
+  if (!storage) return null;
+  const key = `${SESSION_STORAGE_PREFIX}${scope}`;
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isPlainObject(parsed)) {
+      storage.removeItem(key);
+      return null;
+    }
+    const { id, originals, songsById, batches, selectedIds, focusedBatchId } = parsed;
+    if (
+      typeof id !== "string"
+      || !id
+      || !Array.isArray(originals)
+      || !originals.length
+      || !originals.every(isValidSongRecord)
+      || !isPlainObject(songsById)
+      || !Array.isArray(batches)
+      || !batches.length
+      || !Array.isArray(selectedIds)
+      || !(focusedBatchId === null || typeof focusedBatchId === "string")
+    ) {
+      storage.removeItem(key);
+      return null;
+    }
+    const knownSongs = new Set<string>();
+    const validatedEntries: Record<string, ExplorationSong> = {};
+    for (const [songId, entry] of Object.entries(songsById)) {
+      if (!isPlainObject(entry) || !isValidSongRecord(entry.song) || entry.song.id !== songId) {
+        storage.removeItem(key);
+        return null;
+      }
+      if (!(entry.artistId === null || typeof entry.artistId === "string") || !(entry.batchId === null || typeof entry.batchId === "string")) {
+        storage.removeItem(key);
+        return null;
+      }
+      validatedEntries[songId] = {
+        song: entry.song,
+        artistId: entry.artistId,
+        batchId: entry.batchId,
+      };
+    }
+    for (const original of originals) {
+      if (knownSongs.has(original.id) || !validatedEntries[original.id]) {
+        storage.removeItem(key);
+        return null;
+      }
+      knownSongs.add(original.id);
+    }
+    const batchIds = new Set<string>();
+    const validatedBatches: ExplorationBatch[] = [];
+    for (const batch of batches) {
+      if (
+        !isPlainObject(batch)
+        || typeof batch.id !== "string"
+        || !batch.id
+        || batchIds.has(batch.id)
+        || !Array.isArray(batch.inputs)
+        || !batch.inputs.length
+        || !batch.inputs.every((input) => isValidSongRecord(input) && knownSongs.has(input.id))
+        || !Array.isArray(batch.originBatchIds)
+        || !Array.isArray(batch.newSongIds)
+        || !isPlainObject(batch.response)
+        || !Array.isArray(batch.response.recommendations)
+        || !batch.response.recommendations.length
+      ) {
+        storage.removeItem(key);
+        return null;
+      }
+      batchIds.add(batch.id);
+      const recs = batch.response.recommendations;
+      if (batch.newSongIds.length !== recs.length) {
+        storage.removeItem(key);
+        return null;
+      }
+      for (const rec of recs) {
+        if (
+          !isPlainObject(rec)
+          || !isValidSongRecord(rec.song)
+          || knownSongs.has(rec.song.id)
+          || !Array.isArray(rec.reasons)
+          || !rec.reasons.length
+          || !validatedEntries[rec.song.id]
+        ) {
+          storage.removeItem(key);
+          return null;
+        }
+        knownSongs.add(rec.song.id);
+      }
+      validatedBatches.push(batch as ExplorationBatch);
+    }
+    const cleanSelected = selectedIds
+      .filter((selectedId): selectedId is string => typeof selectedId === "string" && !!validatedEntries[selectedId]?.batchId)
+      .slice(0, SELECTION_CAP);
+    const cleanFocused = typeof focusedBatchId === "string" && batchIds.has(focusedBatchId) ? focusedBatchId : null;
+    const frozenOriginals = originals.map((song) => Object.freeze({ ...song }));
+    Object.freeze(frozenOriginals);
+    return {
+      state: {
+        ...initialExplorationState(),
+        id,
+        originals: frozenOriginals,
+        songsById: validatedEntries,
+        batches: validatedBatches,
+        selectedIds: [...new Set(cleanSelected)],
+        focusedBatchId: cleanFocused,
+      },
+      serial: maxSerialFrom(id, validatedBatches),
+    };
+  } catch {
+    try {
+      storage.removeItem(key);
+    } catch {
+      /* Ignore storage cleanup failures. */
+    }
+    return null;
+  }
+}
+
+function writePersistedExploration(scope: string, state: ExplorationState) {
+  if (scope === "loading") return;
+  const storage = getSessionStorage();
+  if (!storage) return;
+  const key = `${SESSION_STORAGE_PREFIX}${scope}`;
+  try {
+    if (!state.id || !state.batches.length) {
+      storage.removeItem(key);
+      return;
+    }
+    const payload: PersistedExploration = {
+      id: state.id,
+      originals: state.originals,
+      songsById: state.songsById,
+      batches: state.batches,
+      selectedIds: state.selectedIds,
+      focusedBatchId: state.focusedBatchId,
+    };
+    storage.setItem(key, JSON.stringify(payload));
+  } catch {
+    /* Ignore sessionStorage quota/security failures. */
+  }
+}
+
+function clearPersistedExploration(scope: string) {
+  if (scope === "loading") return;
+  const storage = getSessionStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(`${SESSION_STORAGE_PREFIX}${scope}`);
+  } catch {
+    /* Ignore storage cleanup failures. */
+  }
+}
 
 function initialFrom(request: ExplorationRequest, id: string, previous: ExplorationState): ExplorationState {
   const originals = request.seeds.map((s) => Object.freeze({ ...s }));
@@ -77,11 +275,40 @@ export class ExplorationCoordinator {
   private active: { controller: AbortController; revision: number; scope: string } | null = null;
   private serial = 0;
   private mounted = true;
+  private hydrated = false;
   constructor(private readonly scope: string, private readonly transport: ExplorationTransport = fetchExploration) {}
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
-  private dispatch(action: ExplorationAction) { this.state = explorationReducer(this.state, action); this.listeners.forEach((listener) => listener()); }
-  activate = () => { this.mounted = true; };
+  private dispatch(action: ExplorationAction) {
+    this.state = explorationReducer(this.state, action);
+    if (this.mounted && this.scope !== "loading") {
+      if (action.type === "reset") {
+        clearPersistedExploration(this.scope);
+      } else if (action.type === "complete" || action.type === "select" || action.type === "focus") {
+        writePersistedExploration(this.scope, this.state);
+      }
+    }
+    this.listeners.forEach((listener) => listener());
+  }
+  activate = () => {
+    this.mounted = true;
+    if (
+      this.scope !== "loading"
+      && !this.hydrated
+      && !this.state.id
+      && !this.state.pending
+      && this.state.batches.length === 0
+      && this.state.revision === 0
+    ) {
+      this.hydrated = true;
+      const restored = readPersistedExploration(this.scope);
+      if (restored) {
+        this.serial = Math.max(this.serial, restored.serial);
+        this.state = restored.state;
+        this.listeners.forEach((listener) => listener());
+      }
+    }
+  };
   dispose = () => {
     this.mounted = false;
     if (this.active) {

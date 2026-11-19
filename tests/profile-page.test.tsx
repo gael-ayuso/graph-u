@@ -558,7 +558,7 @@ describe("components/shared/app-navbar.tsx", () => {
     vi.clearAllMocks();
   });
 
-  it("renders expected navigation links without /recomendaciones and marks aria-current='page' on the active route", async () => {
+  it("renders expected navigation links without /demo or /recomendaciones and marks aria-current='page' on the active route", async () => {
     await mountApp(<AppNavbar />);
     const tree = reactTestRuntime.getTree();
 
@@ -572,11 +572,11 @@ describe("components/shared/app-navbar.tsx", () => {
 
     expect(hrefs).toEqual([
       "/explorar",
-      "/demo",
       "/favoritos",
       "/playlists",
       "/perfil",
     ]);
+    expect(hrefs).not.toContain("/demo");
     expect(hrefs).not.toContain("/recomendaciones");
     expect(getTextContent(desktopNav)).not.toContain("Recomendaciones");
 
@@ -597,17 +597,17 @@ describe("components/shared/app-navbar.tsx", () => {
   });
 
   it("shows sign-in link when signed out and supports sub-route active matching", async () => {
-    usePathnameMock.mockReturnValue("/perfil/seguridad");
+    usePathnameMock.mockReturnValue("/explorar/grafo");
     useUserMock.mockReturnValue({ isSignedIn: false });
 
     await mountApp(<AppNavbar />);
     const tree = reactTestRuntime.getTree();
 
-    const profileLink = findHostNodes(
+    const exploreLink = findHostNodes(
       tree,
-      (n) => n.tag === "a" && n.props.href === "/perfil",
+      (n) => n.tag === "a" && n.props.href === "/explorar",
     )[0];
-    expect(profileLink.props["aria-current"]).toBe("page");
+    expect(exploreLink.props["aria-current"]).toBe("page");
 
     const signInLink = findHostNodes(
       tree,
@@ -633,7 +633,6 @@ describe("components/shared/app-navbar.tsx", () => {
     );
     expect(mobileHrefs).toEqual([
       "/explorar",
-      "/demo",
       "/favoritos",
       "/playlists",
       "/perfil",

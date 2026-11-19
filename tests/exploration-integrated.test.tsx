@@ -38,6 +38,10 @@ vi.mock("next/link", async () => {
   const { jsxElement } = await import("./helpers/recommendation-library-harness");
   return { default: (props: Record<string, unknown>) => jsxElement("a", props) };
 });
+const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
 vi.mock("next/dynamic", async () => {
   const { jsxElement } = await import("./helpers/recommendation-library-harness");
   return { default: () => (props: Record<string, unknown>) => jsxElement("mock-graph", props) };
@@ -83,10 +87,11 @@ function App({ screen }: { screen: "demo" | "graph" }) {
 async function mount(node: ReactNode) { await reactTestRuntime.mount(node as unknown as VElement); }
 async function rerender(node: ReactNode) { await reactTestRuntime.rerender(node as unknown as VElement); }
 
-function createInteractiveWindowMock(storage: Storage) {
+function createInteractiveWindowMock(storage: Storage, sessionStorageMock: Storage) {
   const listeners = new Map<string, Set<(event: unknown) => void>>();
   return {
     localStorage: storage,
+    sessionStorage: sessionStorageMock,
     addEventListener(type: string, listener: (event: unknown) => void) {
       if (!listeners.has(type)) listeners.set(type, new Set());
       listeners.get(type)!.add(listener);
@@ -106,12 +111,15 @@ function createInteractiveWindowMock(storage: Storage) {
 describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
   let memoryStorage: ReturnType<typeof createMemoryStorage>;
+  let sessionStorageMock: ReturnType<typeof createMemoryStorage>;
 
   beforeEach(() => {
     fetchMock = vi.fn();
     memoryStorage = createMemoryStorage();
-    vi.stubGlobal("window", createInteractiveWindowMock(memoryStorage.storage));
+    sessionStorageMock = createMemoryStorage();
+    vi.stubGlobal("window", createInteractiveWindowMock(memoryStorage.storage, sessionStorageMock.storage));
     vi.stubGlobal("localStorage", memoryStorage.storage);
+    vi.stubGlobal("sessionStorage", sessionStorageMock.storage);
     vi.stubGlobal("Event", class FakeEvent {
       constructor(public type: string) {}
     });
@@ -125,7 +133,7 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
     vi.clearAllMocks();
   });
 
-  it("supports cancel, reset confirmation, failed/empty replacement, and Mi lista edits without losing active batches", async () => {
+  it("redirects on start, keeps SongDemo focused on search/list, and supports cancel, reset confirmation, failed/empty replacement, and Mi lista edits", async () => {
     const guest = createMultiBatchFixtures("guest");
     const lateExpand = deferred<Response>();
     const emptyReplacement = buildExplorationResponse({
@@ -151,14 +159,20 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
 
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
-    expect(text()).toContain("Tanda 1");
+    expect(routerPushMock).toHaveBeenCalledTimes(1);
+    expect(routerPushMock).toHaveBeenCalledWith("/explorar/grafo");
+    expect(text()).not.toContain("Tanda 1");
+    expect(text()).toContain("Ver grafo");
     expect(text()).toContain("Canciones iniciales: Reckoner · Radiohead, Teardrop · Massive Attack.");
 
-    // Modifying Mi lista during exploration leaves active originals and batches intact.
+    // Modifying Mi lista on /explorar leaves active originals and batches intact.
     clickButton(findHostNodes(tree(), (n) => n.tag === "button" && n.props["aria-label"] === "Quitar Teardrop de mi lista")[0]);
     await reactTestRuntime.flush();
     expect(text()).toContain("Quitada de tu lista: Teardrop.");
     expect(text()).toContain("Canciones iniciales: Reckoner · Radiohead, Teardrop · Massive Attack.");
+
+    // Navigate to /explorar/grafo -> Batch 1 is visible.
+    await rerender(<App screen="graph" />);
     expect(text()).toContain("Tanda 1");
 
     // Cancel pending expand keeps Batch 1 and selection.
@@ -209,6 +223,7 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
     await reactTestRuntime.flush();
     expect(text()).toContain("0 / 200 canciones");
     expect(text()).not.toContain("Tanda 2");
+    expect(routerPushMock).toHaveBeenCalledTimes(1);
   });
 
   it("renders searchLimited notice, 200-song cap UI controls, and alerts on invalid knownUnselectedOrigin without mutating history", async () => {
@@ -274,6 +289,9 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
     await mount(<App screen="demo" />);
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
+    expect(routerPushMock).toHaveBeenCalledWith("/explorar/grafo");
+
+    await rerender(<App screen="graph" />);
     expect(text()).toContain("La búsqueda fue limitada; podrían existir más resultados.");
     expect(text()).toContain("11 / 200 canciones");
 
@@ -304,7 +322,7 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
     expect(button("Reemplazar desde Mi lista").props.disabled).toBe(false);
   });
 
-  it("shares guest save/vote across two batches in SongDemo and GraphExplorer and resets cleanly on account switch", async () => {
+  it("shares guest save/vote across two batches on GraphExplorer, preserves exploration on SongDemo return, and resets cleanly on account switch", async () => {
     const guest = createMultiBatchFixtures("guest");
     const userPendingExpand = deferred<Response>();
     const userPendingSave = deferred<Response>();
@@ -328,24 +346,31 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
 
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
+    expect(routerPushMock).toHaveBeenCalledWith("/explorar/grafo");
+
+    await rerender(<App screen="graph" />);
     await choose("Glory Box", true);
     clickButton(button("Ampliar con 1 canción"));
     await reactTestRuntime.flush();
     expect(text()).toContain("Tanda 2");
 
-    // Guest saves a card from Batch 1 on SongDemo, then navigates to GraphExplorer and votes on Batch 2.
+    // Guest saves a card from Batch 1 and votes on Batch 2 on GraphExplorer.
     const batch1Group = findHostNodes(tree(), (n) => n.props["aria-label"] === "Guardar o evaluar Glory Box, Portishead")[0];
     clickButton(findButtons(batch1Group, "Guardar")[0]);
     await reactTestRuntime.flush();
     expect(text()).toContain("Canciones guardadas1");
 
-    await rerender(<App screen="graph" />);
     const batch2GroupBefore = findHostNodes(tree(), (n) => n.props["aria-label"] === "Guardar o evaluar Tezeta, Mulatu Astatke")[0];
     clickButton(findButtons(batch2GroupBefore, "Me gusta")[0]);
     await reactTestRuntime.flush();
     const batch2GroupAfter = findHostNodes(tree(), (n) => n.props["aria-label"] === "Guardar o evaluar Tezeta, Mulatu Astatke")[0];
     expect(findButtons(batch2GroupAfter, "Me gusta")[0].props["aria-pressed"]).toBe(true);
     expect(text()).toContain("Canciones guardadas1");
+
+    // Returning to /explorar keeps exploration alive with "Ver grafo" and without rendering batches underneath.
+    await rerender(<App screen="demo" />);
+    expect(text()).toContain("Ver grafo");
+    expect(text()).not.toContain("Tanda 1");
 
     // Sign in as user-a, launch pending expand + pending save, then switch to user-b while both are pending.
     useAuthMock.mockReturnValue({ isLoaded: true, userId: "user-a" });
@@ -367,6 +392,7 @@ describe("T6 integrated UI flows across SongDemo and GraphExplorer", () => {
 
     clickButton(button("Iniciar desde Mi lista"));
     await reactTestRuntime.flush();
+    await rerender(<App screen="graph" />);
     await choose("Glory Box", true);
     clickButton(button("Ampliar con 1 canción"));
     await reactTestRuntime.flush();

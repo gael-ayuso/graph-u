@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Song } from "@/lib/musicbrainz-types";
 import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
@@ -57,10 +57,19 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
 }
 
 /** Shared controls operate on the layout-scoped exploration, independently of Mi lista. */
-export function ExplorationControls({ saved }: { saved: Song[] }) {
+export function ExplorationControls({
+  saved,
+  onStartSuccess,
+  showGraphLink = false,
+}: {
+  saved: Song[];
+  onStartSuccess?: () => void;
+  showGraphLink?: boolean;
+}) {
   const { state, start, expand, alternatives, cancel, reset } = useRecommendationExploration();
   const { accountScope } = useRecommendationLibrary();
   const [confirmReset, setConfirmReset] = useState(false);
+  const startRequestedRef = useRef(false);
   const pending = !!state.pending;
   const capacity = remainingCapacity(state);
   const blocked = pending || accountScope === "loading";
@@ -68,25 +77,57 @@ export function ExplorationControls({ saved }: { saved: Song[] }) {
   const response = attempt?.response;
   const retryDisabled = blocked || (!capacity && attempt?.request.kind !== "start")
     || (attempt?.request.kind === "expand" && !state.selectedIds.length);
+
+  const handleStart = async (seeds: Song[]) => {
+    startRequestedRef.current = !!onStartSuccess;
+    const ok = await start(seeds);
+    if (!ok) {
+      startRequestedRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    if (!startRequestedRef.current || state.pending) return;
+    startRequestedRef.current = false;
+    if (
+      state.lastAttempt?.request.kind === "start" &&
+      !state.lastAttempt.error &&
+      (state.lastAttempt.response?.recommendations.length ?? 0) > 0
+    ) {
+      onStartSuccess?.();
+    }
+  }, [state.pending, state.lastAttempt, onStartSuccess]);
+
   const retry = () => {
     if (!attempt) return;
-    if (attempt.request.kind === "start") void start(attempt.request.seeds);
+    if (attempt.request.kind === "start") void handleStart(attempt.request.seeds);
     else if (attempt.request.kind === "expand") void expand();
     else void alternatives();
   };
+
   return <section className="song-panel recommendations-panel exploration-controls" aria-labelledby="exploration-title" aria-busy={pending}>
     <div className="song-panel-header"><h2 id="exploration-title">Exploración</h2><span>{Object.keys(state.songsById).length} / {EXPLORATION_CAP} canciones</span></div>
-    <p className="list-note">{state.id ? `Canciones iniciales: ${state.originals.map((song) => `${song.title} · ${song.artist}`).join(", ")}.` : "Inicia con las primeras 10 canciones de Mi lista."} La exploración es temporal y se pierde al recargar.</p>
+    <p className="list-note">{state.id ? `Canciones iniciales: ${state.originals.map((song) => `${song.title} · ${song.artist}`).join(", ")}.` : "Inicia con las primeras 10 canciones de Mi lista."} La exploración se conserva en esta pestaña hasta que la reinicies.</p>
     {state.batches.length > 0 && <p className="list-note">Reemplazar desde Mi lista descarta las tandas temporales solo si encuentra nuevos resultados. Guardar o cambiar Mi lista no modifica esta exploración.</p>}
     <div className="exploration-actions">
-      <button className="demo-button demo-button-small" type="button" disabled={blocked || !saved.length} onClick={() => void start(saved)}>{state.batches.length ? "Reemplazar desde Mi lista" : "Iniciar desde Mi lista"}</button>
-      {state.id && <button className="demo-button demo-button-small" type="button" disabled={blocked || !capacity} onClick={() => void alternatives()}>Otras desde las canciones iniciales</button>}
-      {state.batches.length > 0 && <button className="demo-button demo-button-small" type="button" disabled={blocked || !capacity || !state.selectedIds.length} onClick={() => void expand()}>Ampliar con {state.selectedIds.length} {state.selectedIds.length === 1 ? "canción" : "canciones"}</button>}
+      {showGraphLink && state.batches.length > 0 && (
+        <Link href="/explorar/grafo" className="batch-graph-cta">
+          <GraphIcon />
+          <span>Ver grafo</span>
+        </Link>
+      )}
+      <button className="demo-button demo-button-small" type="button" disabled={blocked || !saved.length} onClick={() => void handleStart(saved)}>{state.batches.length ? "Reemplazar desde Mi lista" : "Iniciar desde Mi lista"}</button>
+      {!showGraphLink && state.id && <button className="demo-button demo-button-small" type="button" disabled={blocked || !capacity} onClick={() => void alternatives()}>Otras desde las canciones iniciales</button>}
+      {!showGraphLink && state.batches.length > 0 && <button className="demo-button demo-button-small" type="button" disabled={blocked || !capacity || !state.selectedIds.length} onClick={() => void expand()}>Ampliar con {state.selectedIds.length} {state.selectedIds.length === 1 ? "canción" : "canciones"}</button>}
       {pending && <button className="demo-button demo-button-small" type="button" onClick={cancel}>Cancelar consulta</button>}
       {state.id && !confirmReset && <button className="demo-button demo-button-small" type="button" disabled={pending} onClick={() => setConfirmReset(true)}>Reiniciar exploración</button>}
       {confirmReset && <><span>¿Descartar las tandas temporales?</span><button className="demo-button demo-button-small" type="button" onClick={() => { reset(); setConfirmReset(false); }}>Sí, reiniciar</button><button className="demo-button demo-button-small" type="button" onClick={() => setConfirmReset(false)}>Conservar</button></>}
     </div>
-    {!saved.length && <p className="list-note">Mi lista está vacía. <Link href="/demo">Busca y añade canciones</Link> para iniciar.</p>}
+    {!saved.length && (
+      showGraphLink
+        ? <p className="list-note">Mi lista está vacía. Busca y añade canciones arriba para iniciar.</p>
+        : <p className="list-note">Mi lista está vacía. <Link href="/explorar">Busca y añade canciones</Link> para iniciar.</p>
+    )}
     {state.batches.length > 0 && <p className="list-note">Seleccionadas: {state.selectedIds.length} / {SELECTION_CAP}. {capacity ? `Quedan ${capacity} espacios en la exploración.` : "Límite alcanzado. Reinicia o reemplaza para explorar de nuevo."}</p>}
     <p className="list-note" role="status" aria-live="polite">{pending ? "Buscando recomendaciones; puedes cancelar la consulta." : attempt?.error ? "La consulta no se completó. Puedes reintentar." : response ? response.recommendations.length ? `Se añadieron ${response.recommendations.length} canciones nuevas.` : "No encontramos canciones nuevas en esta consulta." : ""}</p>
     {!pending && attempt?.error && <div className="exploration-attempt" role="alert"><p>{attempt.error}</p><button className="demo-button demo-button-small" type="button" disabled={retryDisabled} onClick={retry}>Volver a intentar</button></div>}
@@ -132,7 +173,7 @@ export function ExplorationBatches() {
 
       <div className="exploration-batches-toolbar">
         <div className="exploration-batches-toolbar-left">
-          <Link href="/explorar" className="batch-graph-cta" onClick={() => focus(null)}>
+          <Link href="/explorar/grafo" className="batch-graph-cta" onClick={() => focus(null)}>
             <GraphIcon />
             <span>Ver grafo</span>
           </Link>
@@ -194,7 +235,7 @@ export function ExplorationBatches() {
 
               <div className="exploration-batch-actions">
                 <Link
-                  href="/explorar"
+                  href="/explorar/grafo"
                   className="batch-graph-link"
                   aria-current={isFocused ? "true" : undefined}
                   onClick={() => focus(batch.id)}

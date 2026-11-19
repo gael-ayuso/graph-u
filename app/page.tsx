@@ -15,13 +15,12 @@ export default function Home() {
         <nav className={styles.nav} aria-label="Navegación principal">
           <a href="#recorrido">El recorrido</a>
           <a href="#coleccion">Tu colección</a>
-          <Link href="/demo">Demo</Link>
+          <Link href="/explorar">Explorar</Link>
           <Suspense fallback={null}>
             <Show when="signed-out">
               <Link href="/sign-in" className={styles.signIn}>Iniciar sesión</Link>
             </Show>
             <Show when="signed-in">
-              <Link href="/explorar">Explorar</Link>
               <Link href="/favoritos">Favoritos</Link>
               <Link href="/playlists">Playlists</Link>
               <Link href="/perfil" className={styles.profileLink}>Mi perfil</Link>
@@ -58,7 +57,7 @@ export default function Home() {
                   </Link>
                 </Show>
               </Suspense>
-              <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo de búsqueda <span aria-hidden="true">→</span></Link>
+              <Link href="/explorar" className={`${styles.button} ${styles.secondary}`}>Empezar a explorar <span aria-hidden="true">→</span></Link>
             </div>
           </div>
           <HeadphonesVideo />
@@ -70,7 +69,7 @@ export default function Home() {
             <p>Tres pasos para imaginar otra forma de explorar tu música.</p>
           </div>
           <ol className={styles.steps}>
-            <li><span>01 / EMPIEZA</span><h3>Parte de una canción</h3><p>Elige una canción que ya conoces. En la demo puedes buscar por título o artista.</p><a href="#cancion">Ver el punto de partida <span aria-hidden="true">↗</span></a></li>
+            <li><span>01 / EMPIEZA</span><h3>Parte de una canción</h3><p>Elige una canción que ya conoces. En Explorar puedes buscar por título o artista.</p><a href="#cancion">Ver el punto de partida <span aria-hidden="true">↗</span></a></li>
             <li><span>02 / EXPLORA</span><h3>Descubre conexiones</h3><p>Imagina un mapa que conecte artistas y canciones. La exploración interactiva está prevista.</p><a href="#conexiones">Ver el ejemplo <span aria-hidden="true">↗</span></a></li>
             <li><span>03 / REÚNE</span><h3>Guarda lo que te gusta</h3><p>Favoritos, playlists y tu opinión forman parte de lo que queremos construir.</p><a href="#coleccion">Conocer la idea <span aria-hidden="true">↗</span></a></li>
           </ol>
@@ -79,7 +78,7 @@ export default function Home() {
             <article className={styles.start} id="cancion">
               <div className={styles.detailLabel}><span>01</span> EL PUNTO DE PARTIDA</div>
               <div className={styles.startBody}>
-                <div><h3>Todo comienza<br />con una canción.</h3><p>Piensa en una que no te canses de escuchar. Empieza buscando por canción o artista.</p><Link href="/demo" className={styles.textLink}>Ir a la demo de búsqueda <span aria-hidden="true">→</span></Link></div>
+                <div><h3>Todo comienza<br />con una canción.</h3><p>Piensa en una que no te canses de escuchar. Empieza buscando por canción o artista.</p><Link href="/explorar" className={styles.textLink}>Ir a Explorar <span aria-hidden="true">→</span></Link></div>
                 <div className={styles.record}>
                   <Image src="/music/in-rainbows.jpg" width={180} height={180} alt="Portada de In Rainbows de Radiohead" />
                   <div><span>CANCIÓN DE EJEMPLO</span><strong>Reckoner</strong><p>Radiohead<br />In Rainbows</p></div>
@@ -147,7 +146,7 @@ export default function Home() {
                     </Link>
                   </Show>
                 </Suspense>
-                <Link href="/demo" className={`${styles.button} ${styles.secondary}`}>Probar demo <span aria-hidden="true">→</span></Link>
+                <Link href="/explorar" className={`${styles.button} ${styles.secondary}`}>Ir a Explorar <span aria-hidden="true">→</span></Link>
               </div>
               <Suspense fallback={<p className={styles.account}>¿Ya tienes cuenta? <Link href="/sign-in">Iniciar sesión</Link></p>}>
                 <Show when="signed-out">
@@ -155,7 +154,7 @@ export default function Home() {
                 </Show>
                 <Show when="signed-in">
                   <p className={styles.account}>
-                    Accesos rápidos: <Link href="/favoritos">Favoritos</Link> · <Link href="/playlists">Playlists</Link> · <Link href="/explorar">Explorar grafo</Link>
+                    Accesos rápidos: <Link href="/favoritos">Favoritos</Link> · <Link href="/playlists">Playlists</Link> · <Link href="/explorar/grafo">Explorar grafo</Link>
                   </p>
                 </Show>
               </Suspense>

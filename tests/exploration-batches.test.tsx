@@ -67,8 +67,13 @@ describe("T4 shared exploration controls and batches", () => {
   beforeEach(() => {
     fetchMock = vi.fn();
     const windowMock = createWindowEventMock();
-    vi.stubGlobal("window", Object.assign(windowMock.window, { matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }) }));
+    const sessionStorageMock = createMemoryStorage().storage;
+    vi.stubGlobal("window", Object.assign(windowMock.window, {
+      sessionStorage: sessionStorageMock,
+      matchMedia: () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    }));
     vi.stubGlobal("localStorage", createMemoryStorage().storage);
+    vi.stubGlobal("sessionStorage", sessionStorageMock);
     vi.stubGlobal("fetch", fetchMock);
     useAuthMock.mockReturnValue({ isLoaded: true, userId: "user-a" });
   });
@@ -120,7 +125,7 @@ describe("T4 shared exploration controls and batches", () => {
     await choose("Angel", true);
     const links = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver grafo de esta tanda");
     expect(links).toHaveLength(2);
-    expect(links[0].props.href).toBe("/explorar");
+    expect(links[0].props.href).toBe("/explorar/grafo");
     (links[0].props.onClick as () => void)();
     await reactTestRuntime.flush();
     const focusedFirst = findHostNodes(tree(), (node) => node.tag === "mock-graph")[0].props.graph as { nodes: { id: string }[] };
@@ -128,7 +133,7 @@ describe("T4 shared exploration controls and batches", () => {
     expect(checkbox("Angel").props.checked).toBe(true);
     const globalLink = findHostNodes(tree(), (node) => node.tag === "a" && getTextContent(node) === "Ver grafo");
     expect(globalLink).toHaveLength(1);
-    expect(globalLink[0].props.href).toBe("/explorar");
+    expect(globalLink[0].props.href).toBe("/explorar/grafo");
     expect(globalLink[0].props.className).toBe("batch-graph-cta");
     (globalLink[0].props.onClick as () => void)();
     await reactTestRuntime.flush();
@@ -164,6 +169,75 @@ describe("T4 shared exploration controls and batches", () => {
     await rerender(<App screen="demo" />);
     expect(requests).toHaveLength(3);
     expect(text()).toContain("Tanda 3");
+  });
+
+  it("calls onStartSuccess only when start completes with recommendations, renders Ver grafo link, and persists across remount until reset", async () => {
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
+    const guest = createMultiBatchFixtures("guest");
+    const onStartSuccess = vi.fn();
+    let call = 0;
+    fetchMock.mockImplementation(() => {
+      call++;
+      if (call === 1) return Promise.resolve(jsonResponse({ error: "Error temporal" }, 503));
+      if (call === 2) return Promise.resolve(jsonResponse(guest.responses.emptyOriginals));
+      return Promise.resolve(jsonResponse(guest.responses.batch1));
+    });
+
+    await mount(
+      <RecommendationLibraryProvider>
+        <RecommendationExplorationProvider>
+          <ExplorationControls saved={guest.originals} showGraphLink onStartSuccess={onStartSuccess} />
+        </RecommendationExplorationProvider>
+      </RecommendationLibraryProvider>,
+    );
+
+    // 1) Error -> stays on page
+    clickButton(button("Iniciar desde Mi lista"));
+    await reactTestRuntime.flush();
+    expect(onStartSuccess).not.toHaveBeenCalled();
+
+    // 2) Retry returning 0 recommendations -> stays on page
+    clickButton(button("Volver a intentar"));
+    await reactTestRuntime.flush();
+    expect(onStartSuccess).not.toHaveBeenCalled();
+
+    // 3) Retry succeeding with recommendations -> calls onStartSuccess and shows Ver grafo link
+    clickButton(button("Volver a intentar"));
+    await reactTestRuntime.flush();
+    expect(onStartSuccess).toHaveBeenCalledTimes(1);
+    const graphLinks = findHostNodes(tree(), (node) => node.tag === "a" && node.props.href === "/explorar/grafo");
+    expect(graphLinks).toHaveLength(1);
+    expect(getTextContent(graphLinks[0])).toBe("Ver grafo");
+
+    // 4) Unmount & remount (simulating page reload / returning to /explorar) keeps Ver grafo link
+    reactTestRuntime.unmount();
+    await mount(
+      <RecommendationLibraryProvider>
+        <RecommendationExplorationProvider>
+          <ExplorationControls saved={guest.originals} showGraphLink onStartSuccess={onStartSuccess} />
+        </RecommendationExplorationProvider>
+      </RecommendationLibraryProvider>,
+    );
+    const persistedLinks = findHostNodes(tree(), (node) => node.tag === "a" && node.props.href === "/explorar/grafo");
+    expect(persistedLinks).toHaveLength(1);
+    expect(getTextContent(persistedLinks[0])).toBe("Ver grafo");
+
+    // 5) Reset clears persisted exploration and removes Ver grafo link
+    clickButton(button("Reiniciar exploración"));
+    await reactTestRuntime.flush();
+    clickButton(button("Sí, reiniciar"));
+    await reactTestRuntime.flush();
+    expect(findHostNodes(tree(), (node) => node.tag === "a" && node.props.href === "/explorar/grafo")).toHaveLength(0);
+
+    reactTestRuntime.unmount();
+    await mount(
+      <RecommendationLibraryProvider>
+        <RecommendationExplorationProvider>
+          <ExplorationControls saved={guest.originals} showGraphLink onStartSuccess={onStartSuccess} />
+        </RecommendationExplorationProvider>
+      </RecommendationLibraryProvider>,
+    );
+    expect(findHostNodes(tree(), (node) => node.tag === "a" && node.props.href === "/explorar/grafo")).toHaveLength(0);
   });
 
   it("allows collapsing and expanding individual batches as well as all batches", async () => {

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AppNavbar } from "@/components/shared/app-navbar";
-import { GraphExplorer } from "@/components/graph-explorer";
+import { SongDemo } from "@/components/song-demo";
 
-export const metadata: Metadata = { title: "Explorar grafo | GraphU" };
+export const metadata: Metadata = { title: "Explorar | GraphU" };
 
 export default function ExplorePage() {
   return (
@@ -12,13 +12,13 @@ export default function ExplorePage() {
       <div className="landing flex flex-1 flex-col">
         <main className="demo-main">
           <div className="mb-4">
-            <Link href="/demo" className="demo-back">← Volver a mi lista</Link>
+            <Link href="/" className="demo-back">← Volver al inicio</Link>
           </div>
-          <h1>Explora tus recomendaciones.</h1>
-          <p className="demo-intro">El resumen muestra qué canciones dieron lugar a cada recomendación. En el detalle de cada tanda puedes explorar las etiquetas, las señales de Last.fm y las colaboraciones que explican sus resultados.</p>
-          <GraphExplorer />
+          <h1>Busca y crea tu lista.</h1>
+          <p className="demo-intro">Busca en MusicBrainz, arma tu lista de canciones iniciales y genera tu grafo de recomendaciones.</p>
+          <SongDemo />
         </main>
-        <footer className="site-footer"><span>GraphU · Explorador</span><a href="https://musicbrainz.org/" target="_blank" rel="noreferrer">Datos de MusicBrainz ↗</a></footer>
+        <footer className="site-footer"><span>GraphU · Explorar</span><a href="https://musicbrainz.org/" target="_blank" rel="noreferrer">Datos de MusicBrainz ↗</a></footer>
       </div>
     </div>
   );

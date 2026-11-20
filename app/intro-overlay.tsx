@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
 
 // Collage de la referencia "Intro Collage": tamaño (vw), posición apilada y posición final
@@ -28,9 +28,9 @@ export const INTRO_ALBUM_LAYERS: readonly IntroAlbumLayer[] = [
 
 export const INTRO_STORAGE_KEY = "graphu_intro_seen_v1";
 
-// preload: pantalla negra hasta que bajan las portadas; loading: se apilan y cuenta 0-100 %;
-// scatter: se dispersan y aparece "Entrar"; exiting: fundido hacia la página.
-type IntroPhase = "preload" | "loading" | "scatter" | "exiting" | "done";
+// loading: las portadas se apilan y cuenta 0-100 %; scatter: se dispersan y aparece "Entrar";
+// exiting: fundido hacia la página.
+type IntroPhase = "loading" | "scatter" | "exiting" | "done";
 
 type IntroOverlayProps = {
   onComplete?: () => void;
@@ -40,7 +40,6 @@ type IntroOverlayProps = {
 export const INTRO_DURATION_MS = 4000;
 const SCATTER_DELAY_MS = INTRO_DURATION_MS + 700;
 const EXIT_DURATION_MS = 550;
-const PRELOAD_MAX_MS = 2000;
 
 function markSeen() {
   try {
@@ -54,8 +53,10 @@ export default function IntroOverlay({
   onComplete,
   forcePlay = false,
 }: IntroOverlayProps) {
-  const [phase, setPhase] = useState<IntroPhase>("preload");
+  const [phase, setPhase] = useState<IntroPhase>("loading");
   const [count, setCount] = useState(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     const reducedMotion =
@@ -73,65 +74,57 @@ export default function IntroOverlay({
 
     if (reducedMotion || alreadySeen) {
       markSeen();
+      let cancelled = false;
       queueMicrotask(() => {
+        if (cancelled) return;
         setPhase("done");
-        onComplete?.();
+        onCompleteRef.current?.();
       });
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
-    const timers: ReturnType<typeof setTimeout>[] = [];
     let raf = 0;
-    let started = false;
     let cancelled = false;
-
-    const start = () => {
-      if (started || cancelled) return;
-      started = true;
-      setPhase("loading");
-      timers.push(setTimeout(() => setPhase("scatter"), SCATTER_DELAY_MS));
-      if (typeof requestAnimationFrame === "function") {
-        const t0 = performance.now();
-        const tick = (now: number) => {
-          const p = Math.min(1, (now - t0) / INTRO_DURATION_MS);
-          const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-          setCount(Math.round(eased * 100));
-          if (p < 1) raf = requestAnimationFrame(tick);
-        };
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const tick = (now: number) => {
+      if (cancelled) return;
+      const p = Math.min(1, (now - t0) / INTRO_DURATION_MS);
+      const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      setCount(Math.round(eased * 100));
+      if (p < 1 && typeof requestAnimationFrame === "function") {
         raf = requestAnimationFrame(tick);
       }
     };
-
-    if (typeof Image === "undefined") {
-      start();
+    if (typeof requestAnimationFrame === "function") {
+      raf = requestAnimationFrame(tick);
     } else {
-      // Sin precarga, en la primera visita las portadas se revelan vacías mientras bajan.
-      const loads = INTRO_ALBUM_LAYERS.map(({ src }) => {
-        const img = new Image();
-        img.src = src;
-        return img.decode().catch(() => undefined);
+      queueMicrotask(() => {
+        if (!cancelled) setCount(100);
       });
-      timers.push(setTimeout(start, PRELOAD_MAX_MS));
-      void Promise.all(loads).then(start);
     }
 
     return () => {
       cancelled = true;
-      if (raf) cancelAnimationFrame(raf);
-      for (const timer of timers) {
-        clearTimeout(timer);
-      }
+      if (raf && typeof cancelAnimationFrame === "function") cancelAnimationFrame(raf);
     };
-  }, [forcePlay, onComplete]);
+  }, [forcePlay]);
+
+  useEffect(() => {
+    if (phase !== "loading") return;
+    const timer = setTimeout(() => setPhase("scatter"), SCATTER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "exiting") return;
     const timer = setTimeout(() => {
       setPhase("done");
-      onComplete?.();
+      onCompleteRef.current?.();
     }, EXIT_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [phase, onComplete]);
+  }, [phase]);
 
   useEffect(() => {
     if (phase === "done" || phase === "exiting") return;
@@ -140,7 +133,7 @@ export default function IntroOverlay({
     };
     window.addEventListener?.("keydown", onKey);
     return () => window.removeEventListener?.("keydown", onKey);
-  });
+  }, [phase]);
 
   function enter() {
     markSeen();
@@ -151,7 +144,6 @@ export default function IntroOverlay({
     return null;
   }
 
-  const playing = phase !== "preload";
   const scattered = phase === "scatter" || phase === "exiting";
 
   return (
@@ -161,7 +153,6 @@ export default function IntroOverlay({
       aria-label="Animación de introducción de GRAPH-U"
       data-testid="intro-overlay"
       data-phase={phase}
-      onClick={enter}
     >
       {INTRO_ALBUM_LAYERS.map((layer, index) => (
         <img
@@ -171,7 +162,7 @@ export default function IntroOverlay({
           width={320}
           height={320}
           decoding="async"
-          className={`${styles.introPhoto} ${playing ? styles.introPhotoIn : ""} ${scattered ? styles.introPhotoScatter : ""}`}
+          className={`${styles.introPhoto} ${styles.introPhotoIn} ${scattered ? styles.introPhotoScatter : ""}`}
           data-layer-id={layer.id}
           style={
             {
@@ -192,7 +183,7 @@ export default function IntroOverlay({
       <div className={styles.introText}>
         <div className={styles.introTitleClip}>
           {/* div y no h1: la página ya tiene su h1 debajo del intro. */}
-          <div className={`${styles.introTitle} ${playing ? styles.introTitleIn : ""}`} data-testid="intro-main-title">
+          <div className={`${styles.introTitle} ${styles.introTitleIn}`} data-testid="intro-main-title">
             GRAPH-U
           </div>
         </div>
@@ -207,11 +198,8 @@ export default function IntroOverlay({
 
       <button
         type="button"
-        className={`${styles.introEnter} ${scattered ? styles.introEnterVisible : ""}`}
-        onClick={(event) => {
-          event?.stopPropagation(); // si no, el clic del fondo vuelve a llamar a enter()
-          enter();
-        }}
+        className={styles.introEnter}
+        onClick={enter}
       >
         {scattered ? "Entrar" : "Saltar intro"}
       </button>

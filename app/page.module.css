@@ -14,7 +14,6 @@
   background: #000;
   color: #fff;
   overflow: hidden;
-  cursor: pointer;
   transition: opacity 550ms ease;
 }
 .introOverlayExiting { opacity: 0; pointer-events: none; }
@@ -62,7 +61,7 @@
 .introCounter {
   position: absolute;
   right: 32px;
-  bottom: 20px;
+  bottom: 88px;
   font-family: var(--font-anton), "Anton", Impact, sans-serif;
   font-size: 11vw;
   line-height: 1;
@@ -81,7 +80,7 @@
 @keyframes introFadeOut { to { opacity: 0; } }
 .introEnter {
   position: absolute;
-  left: 32px;
+  right: 32px;
   bottom: 28px;
   padding: 10px 16px;
   border: 1px solid #fff;
@@ -94,13 +93,9 @@
   white-space: nowrap;
   cursor: pointer;
   mix-blend-mode: difference;
-  opacity: 0;
-  pointer-events: none;
   transition: background-color 140ms ease-out, color 140ms ease-out;
 }
-.introEnter:focus-visible { opacity: 1; outline: 2px solid #fff; outline-offset: 4px; }
-.introEnterVisible { pointer-events: auto; animation: introEnterIn 600ms var(--intro-ease) 1200ms forwards; }
-@keyframes introEnterIn { to { opacity: 1; } }
+.introEnter:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 .introEnter:hover { background: #fff; color: #000; }
 
 .header { min-height: 84px; display: flex; justify-content: space-between; align-items: center; gap: 24px; border-bottom: 1px solid var(--olive); }

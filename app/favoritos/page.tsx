@@ -422,21 +422,21 @@ export default function FavoritosPage() {
     }
   };
 
+  const pageSubtitle = "Canciones y artistas guardados en tu cuenta.";
+
   if (!isLoaded || (user && isLoading)) {
     return (
-      <AppShell title="Favoritos" subtitle="Tu colección guardada de canciones y artistas.">
-        <LoadingState message="Cargando biblioteca de favoritos..." />
+      <AppShell title="Favoritos" subtitle={pageSubtitle}>
+        <LoadingState variant="favorites" message="Cargando biblioteca de favoritos..." />
       </AppShell>
     );
   }
 
   if (!user) {
     return (
-      <AppShell
-        title="Favoritos"
-        subtitle="Canciones y artistas guardados en tu cuenta."
-      >
+      <AppShell title="Favoritos" subtitle={pageSubtitle}>
         <EmptyState
+          eyebrow="[ SESIÓN REQUERIDA ]"
           title="Inicia sesión para ver tus favoritos"
           description="Necesitas una sesión activa para guardar, consultar y administrar tus canciones y artistas favoritos."
           action={
@@ -454,10 +454,7 @@ export default function FavoritosPage() {
 
   if (isError) {
     return (
-      <AppShell
-        title="Favoritos"
-        subtitle="Canciones y artistas guardados en tu cuenta."
-      >
+      <AppShell title="Favoritos" subtitle={pageSubtitle}>
         <ErrorState
           title="Error al cargar favoritos"
           message={(error as Error)?.message || "No se pudo consultar tu biblioteca."}
@@ -470,7 +467,7 @@ export default function FavoritosPage() {
   return (
     <AppShell
       title="Favoritos"
-      subtitle="Canciones y artistas guardados en tu cuenta."
+      subtitle={pageSubtitle}
       actions={
         <>
           <button
@@ -627,9 +624,9 @@ export default function FavoritosPage() {
           )}
 
           {catalogLoading && (
-            <p role="status" className="mt-4 text-xs text-[var(--cream)]/80">
-              Consultando catálogo MusicBrainz...
-            </p>
+            <div className="mt-5">
+              <LoadingState rows={3} message="Consultando catálogo MusicBrainz..." />
+            </div>
           )}
 
           {!catalogLoading && catalogSearched && catalogType === "tracks" && (
@@ -856,6 +853,15 @@ export default function FavoritosPage() {
                       mbid: track.recordingMbid,
                       releaseMbid: track.coverReleaseMbid,
                     });
+              const searchHref = `/explorar?${new URLSearchParams({
+                q: track.title,
+                artist: track.artistName,
+              }).toString()}`;
+              const graphHref = `/explorar/grafo?${new URLSearchParams({
+                seed: track.recordingMbid,
+                title: track.title,
+                artist: track.artistName,
+              }).toString()}`;
               return (
                 <li
                   key={track.id || track.recordingMbid}
@@ -883,13 +889,13 @@ export default function FavoritosPage() {
 
                   <div className="flex flex-wrap items-center gap-2 pl-7 sm:pl-0">
                     <Link
-                      href="/explorar"
+                      href={searchHref}
                       className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-3 py-2 text-xs text-[var(--cream)] hover:border-[var(--clay)] hover:text-[var(--clay)]"
                     >
                       Buscar similares
                     </Link>
                     <Link
-                      href="/explorar/grafo"
+                      href={graphHref}
                       className="min-h-[44px] inline-flex items-center border border-[var(--olive)] px-3 py-2 text-xs text-[var(--cream)] hover:border-[var(--clay)] hover:text-[var(--clay)]"
                     >
                       Explorar grafo

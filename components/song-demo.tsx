@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Song } from "@/lib/musicbrainz-types";
 import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
 import { CoverArt } from "@/components/shared/cover-art";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { ExplorationControls } from "@/components/exploration-batches";
 
 export { snapshot, subscribe, readSongs } from "@/lib/saved-song-list";
@@ -21,6 +22,7 @@ export function SongDemo() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [artist, setArtist] = useState("");
+  const [searchedWithArtist, setSearchedWithArtist] = useState(false);
   const [results, setResults] = useState<Song[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,7 @@ export function SongDemo() {
   const [notice, setNotice] = useState("");
   const [temporary, setTemporary] = useState(false);
   const controller = useRef<AbortController | null>(null);
+  const initialSearchRun = useRef(false);
   const rawList = useSyncExternalStore(subscribe, snapshot, () => "[]");
   const saved = useMemo(() => readSongs(rawList), [rawList]);
   const savedIds = useMemo(() => new Set(saved.map((song) => song.id)), [saved]);
@@ -37,10 +40,10 @@ export function SongDemo() {
     router.push("/explorar/grafo");
   }, [router]);
 
-  async function search(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (loading) return;
-    if (!title.trim() && !artist.trim()) {
+  const executeSearch = useCallback(async (nextTitle: string, nextArtist: string) => {
+    const cleanTitle = nextTitle.trim();
+    const cleanArtist = nextArtist.trim();
+    if (!cleanTitle && !cleanArtist) {
       setError("Escribe el nombre de una canción o un artista.");
       return;
     }
@@ -51,8 +54,9 @@ export function SongDemo() {
     setError("");
     setResults([]);
     setSearched(false);
+    setSearchedWithArtist(!!cleanArtist);
     try {
-      const params = new URLSearchParams({ q: title.trim(), artist: artist.trim() });
+      const params = new URLSearchParams({ q: cleanTitle, artist: cleanArtist });
       const response = await fetch(`/api/music/search?${params}`, { signal: request.signal });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "No se pudo realizar la búsqueda.");
@@ -64,6 +68,32 @@ export function SongDemo() {
     } finally {
       if (!request.signal.aborted) setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (initialSearchRun.current || typeof window === "undefined" || !window.location?.search) return;
+    const params = new URLSearchParams(window.location.search);
+    const initialQ = (params.get("q") ?? "").trim();
+    const initialArtist = (params.get("artist") ?? "").trim();
+    if (!initialQ && !initialArtist) return;
+
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || initialSearchRun.current) return;
+      initialSearchRun.current = true;
+      setTitle(initialQ);
+      setArtist(initialArtist);
+      void executeSearch(initialQ, initialArtist);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [executeSearch]);
+
+  async function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
+    await executeSearch(title, artist);
   }
 
   function addSong(song: Song) {
@@ -90,7 +120,7 @@ export function SongDemo() {
         <section className="song-panel" aria-labelledby="results-title" aria-busy={loading}>
           <div className="song-panel-header"><h2 id="results-title">Resultados</h2><span>{searched ? `${results.length} ${results.length === 1 ? "canción" : "canciones"}` : "MusicBrainz"}</span></div>
           <p className="sr-only" role="status">{loading ? "Buscando canciones en MusicBrainz." : searched ? `${results.length} ${results.length === 1 ? "canción encontrada" : "canciones encontradas"}.` : ""}</p>
-          {loading ? <p className="song-empty">Buscando en MusicBrainz…</p> : results.length ? (
+          {loading ? <LoadingSkeleton /> : results.length ? (
             <ul className="song-results">
               {results.map((song) => (
                 <li className="song-row" key={song.id}>
@@ -107,7 +137,13 @@ export function SongDemo() {
               ))}
             </ul>
           ) : <p className="song-empty">{searched ? "No encontramos canciones. Prueba otro título o artista." : "Busca una canción para ver los resultados aquí."}</p>}
-          {searched && results.length > 0 && <p className="search-footnote">Hasta 20 resultados. Añade un artista para afinar la búsqueda.</p>}
+          {searched && results.length > 0 && (
+            <p className="search-footnote">
+              {searchedWithArtist
+                ? "Hasta 20 resultados de MusicBrainz."
+                : "Hasta 20 resultados. Añade un artista para afinar la búsqueda."}
+            </p>
+          )}
         </section>
         <section className="song-panel saved-panel" aria-labelledby="saved-title">
           <div className="song-panel-header"><h2 id="saved-title">Mi lista</h2><span>{saved.length}</span></div>

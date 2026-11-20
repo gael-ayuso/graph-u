@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./page.module.css";
 
 // Collage de la referencia "Intro Collage": tamaño (vw), posición apilada y posición final
@@ -56,7 +56,16 @@ export default function IntroOverlay({
   const [phase, setPhase] = useState<IntroPhase>("loading");
   const [count, setCount] = useState(0);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  const enterButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const enter = useCallback(() => {
+    markSeen();
+    setPhase("exiting");
+  }, []);
 
   useEffect(() => {
     const reducedMotion =
@@ -133,12 +142,24 @@ export default function IntroOverlay({
     };
     window.addEventListener?.("keydown", onKey);
     return () => window.removeEventListener?.("keydown", onKey);
+  }, [phase, enter]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (phase === "done" || phase === "exiting") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, [phase]);
 
-  function enter() {
-    markSeen();
-    setPhase("exiting");
-  }
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (phase === "scatter") {
+      enterButtonRef.current?.focus();
+    }
+  }, [phase]);
 
   if (phase === "done") {
     return null;
@@ -155,6 +176,7 @@ export default function IntroOverlay({
       data-phase={phase}
     >
       {INTRO_ALBUM_LAYERS.map((layer, index) => (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           key={layer.id}
           src={layer.src}
@@ -197,6 +219,7 @@ export default function IntroOverlay({
       </div>
 
       <button
+        ref={enterButtonRef}
         type="button"
         className={styles.introEnter}
         onClick={enter}

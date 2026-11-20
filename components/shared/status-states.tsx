@@ -1,22 +1,23 @@
 "use client";
 
 import React from "react";
+import { LoadingSkeleton, type SkeletonVariant } from "./loading-skeleton";
 
 interface LoadingStateProps {
   message?: string;
+  variant?: SkeletonVariant;
+  rows?: number;
 }
 
-export function LoadingState({ message = "Cargando datos..." }: LoadingStateProps) {
+export function LoadingState({ message = "Cargando datos...", variant = "songs", rows = 4 }: LoadingStateProps) {
   return (
     <div
       role="status"
       aria-live="polite"
-      className="border border-[var(--olive)] bg-[#32302f] p-6 font-mono text-[var(--cream)]"
+      className="font-mono text-[var(--cream)]"
     >
-      <div className="flex items-center gap-3">
-        <span className="inline-block h-4 w-2.5 animate-pulse bg-[var(--clay)]" aria-hidden="true" />
-        <p className="text-sm md:text-base">{message}</p>
-      </div>
+      <p className="mb-4 text-sm">{message}</p>
+      <div aria-busy="true"><LoadingSkeleton variant={variant} rows={rows} /></div>
     </div>
   );
 }
@@ -25,15 +26,21 @@ interface EmptyStateProps {
   title: string;
   description: string;
   action?: React.ReactNode;
+  eyebrow?: string;
 }
 
-export function EmptyState({ title, description, action }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  eyebrow = "[ SIN REGISTROS ]",
+}: EmptyStateProps) {
   return (
     <div className="border border-dashed border-[var(--olive)] bg-[var(--forest)] p-8 text-center font-mono">
       <p className="text-xs uppercase tracking-widest text-[var(--olive)] mb-2">
-        [ SIN REGISTROS ]
+        {eyebrow}
       </p>
-      <h3 className="text-lg font-bold text-[var(--cream)] mb-2">{title}</h3>
+      <h2 className="text-lg font-bold text-[var(--cream)] mb-2">{title}</h2>
       <p className="mx-auto max-w-md text-sm text-[var(--cream)]/80 mb-6">
         {description}
       </p>

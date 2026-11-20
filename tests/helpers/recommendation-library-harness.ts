@@ -1,4 +1,4 @@
-﻿export type HostNode = {
+export type HostNode = {
   kind: "host";
   tag: string;
   props: Record<string, unknown>;
@@ -509,13 +509,20 @@ export function createReactTestRuntime() {
     };
   }
 
+  function useCallback<T>(fn: T): T {
+    return fn;
+  }
+
   const reactMock = {
     Fragment: FRAGMENT_SYMBOL,
+    // This synchronous harness renders resolved children; prerendering is checked by next build.
+    Suspense: ({ children }: { children?: unknown }) => children,
     createContext,
     useContext,
     useState,
     useRef,
     useEffect,
+    useCallback,
     createElement,
   };
 

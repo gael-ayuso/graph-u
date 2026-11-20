@@ -182,7 +182,7 @@ describe("lib/music-library/catalog", () => {
         comment: null,
         coverReleaseMbid: RELEASE_MBID,
         coverReleaseGroupMbid: RELEASE_GROUP_MBID,
-        coverUrl: `/api/music/cover?type=recording&mbid=${RECORDING_MBID}&releaseMbid=${RELEASE_MBID}&releaseGroupMbid=${RELEASE_GROUP_MBID}`,
+        coverUrl: `/api/music/cover?type=release&mbid=${RELEASE_MBID}&releaseGroupMbid=${RELEASE_GROUP_MBID}`,
       });
     });
 

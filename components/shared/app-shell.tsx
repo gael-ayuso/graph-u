@@ -1,5 +1,6 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { AppNavbar } from "./app-navbar";
+import motion from "./navigation-motion.module.css";
 
 interface AppShellProps {
   title: string;
@@ -11,8 +12,10 @@ interface AppShellProps {
 export function AppShell({ title, subtitle, actions, children }: AppShellProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[var(--forest)] text-[var(--cream)] font-mono">
-      <AppNavbar />
-      <main className="mx-auto w-full max-w-[1512px] flex-1 px-5 py-8 md:px-8 lg:px-[52px]">
+      <Suspense fallback={<div aria-hidden="true" className="h-[77px] shrink-0 border-b border-[var(--olive)]" />}>
+        <AppNavbar />
+      </Suspense>
+      <main className={`${motion.content} mx-auto w-full max-w-[1512px] flex-1 px-5 py-8 md:px-8 lg:px-[52px]`}>
         <header className="mb-8 flex flex-col gap-4 border-b border-[var(--olive)] pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--cream)] md:text-4xl">

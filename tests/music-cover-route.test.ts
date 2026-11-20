@@ -16,6 +16,10 @@ const {
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    coverImageCache: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
   },
   isCatalogConfigured: vi.fn(),
   resolveRecordingCoverTarget: vi.fn(),
@@ -44,6 +48,7 @@ const RELEASE_GROUP_MBID = "66666666-5555-4444-8333-222222222222";
 
 const globalForCovers = globalThis as unknown as {
   graphuCoverInFlight?: Map<string, unknown>;
+  graphuCoverImageInFlight?: Map<string, unknown>;
   graphuMbLastRequestAt?: number;
 };
 
@@ -54,6 +59,7 @@ describe("GET /api/music/cover", () => {
 
   beforeEach(() => {
     globalForCovers.graphuCoverInFlight = undefined;
+    globalForCovers.graphuCoverImageInFlight = undefined;
     globalForCovers.graphuMbLastRequestAt = undefined;
     process.env.DATABASE_URL = "postgres://app:pass@localhost:5431/app";
     process.env.ENABLE_PUBLIC_MB_COVER_FALLBACK = "false";
@@ -61,6 +67,8 @@ describe("GET /api/music/cover", () => {
     getDb.mockReturnValue(db);
     db.coverCache.findUnique.mockResolvedValue(null);
     db.coverCache.upsert.mockResolvedValue({});
+    db.coverImageCache.findUnique.mockReset().mockResolvedValue(null);
+    db.coverImageCache.upsert.mockReset().mockResolvedValue({});
 
     isCatalogConfigured.mockReturnValue(true);
     resolveRecordingCoverTarget.mockResolvedValue({
@@ -132,9 +140,112 @@ describe("GET /api/music/cover", () => {
     expect(res.headers.get("content-type")).toBe("image/jpeg");
     expect(res.headers.get("x-cover-status")).toBe("FOUND");
     expect(res.headers.get("x-cover-cache")).toBe("HIT");
+    expect(res.headers.get("x-cover-image-cache")).toBe("MISS");
     expect(resolveRecordingCoverTarget).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(imageBytes);
+  });
+
+  it("reuses persisted bytes on a later request even after process caches are cleared", async () => {
+    let persisted: unknown = null;
+    db.coverImageCache.findUnique.mockImplementation(async () => persisted);
+    db.coverImageCache.upsert.mockImplementation(async ({ create }) => {
+      persisted = create;
+      return create;
+    });
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(bytes, {
+      headers: { "Content-Type": "image/png" },
+    }));
+    globalThis.fetch = fetchMock;
+    const request = () => new Request(`http://localhost/api/music/cover?type=release&mbid=${RELEASE_MBID}`);
+
+    const first = await getMusicCover(request());
+    expect(first.headers.get("x-cover-image-cache")).toBe("MISS");
+    expect(new Uint8Array(await first.arrayBuffer())).toEqual(bytes);
+    globalForCovers.graphuCoverInFlight = undefined;
+    globalForCovers.graphuCoverImageInFlight = undefined;
+
+    const second = await getMusicCover(request());
+    expect(second.headers.get("x-cover-image-cache")).toBe("HIT");
+    expect(second.headers.get("content-type")).toBe("image/png");
+    expect(new Uint8Array(await second.arrayBuffer())).toEqual(bytes);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(db.coverImageCache.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares one download between different entities resolving to the same image", async () => {
+    resolveRecordingCoverTarget.mockResolvedValue({ releaseMbid: RELEASE_MBID, releaseGroupMbid: null });
+    resolveArtistCoverTarget.mockResolvedValue({ releaseMbid: RELEASE_MBID, releaseGroupMbid: null });
+    const fetchMock = vi.fn().mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 15));
+      return new Response(new Uint8Array([1, 2, 3]), { headers: { "Content-Type": "image/jpeg" } });
+    });
+    globalThis.fetch = fetchMock;
+
+    const responses = await Promise.all([
+      getMusicCover(new Request(`http://localhost/api/music/cover?type=recording&mbid=${RECORDING_MBID}`)),
+      getMusicCover(new Request(`http://localhost/api/music/cover?type=artist&mbid=${ARTIST_MBID}`)),
+    ]);
+    expect(responses.every((response) => response.headers.get("x-cover-status") === "FOUND")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(db.coverImageCache.upsert).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes expired bytes even if metadata is still fresh", async () => {
+    const url = `https://coverartarchive.org/release/${RELEASE_MBID}/front-250`;
+    db.coverCache.findUnique.mockResolvedValueOnce({
+      entityType: "release", mbid: RELEASE_MBID, releaseMbid: RELEASE_MBID,
+      releaseGroupMbid: null, coverUrl: url, status: "FOUND", checkedAt: new Date(),
+    });
+    db.coverImageCache.findUnique.mockResolvedValueOnce({
+      url, bytes: new Uint8Array([1]), contentType: "image/jpeg",
+      fetchedAt: new Date(Date.now() - 31 * 86400000),
+    });
+    const bytes = new Uint8Array([2, 3]);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(bytes, { headers: { "Content-Type": "image/png" } }));
+    globalThis.fetch = fetchMock;
+
+    const response = await getMusicCover(new Request(`http://localhost/api/music/cover?type=release&mbid=${RELEASE_MBID}`));
+    expect(response.headers.get("x-cover-image-cache")).toBe("MISS");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+    expect(db.coverImageCache.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({ bytes: Buffer.from(bytes), contentType: "image/png" }),
+    }));
+  });
+
+  it("still serves a downloaded image when persistent storage fails", async () => {
+    db.coverImageCache.findUnique.mockRejectedValueOnce(new Error("storage offline"));
+    db.coverImageCache.upsert.mockRejectedValueOnce(new Error("storage offline"));
+    const bytes = new Uint8Array([1, 2, 3]);
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(bytes, { headers: { "Content-Type": "image/jpeg" } }));
+
+    const response = await getMusicCover(new Request(`http://localhost/api/music/cover?type=release&mbid=${RELEASE_MBID}`));
+    expect(response.headers.get("x-cover-status")).toBe("FOUND");
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+  });
+
+  it("keeps serving images without database configuration", async () => {
+    delete process.env.DATABASE_URL;
+    const bytes = new Uint8Array([1, 2, 3]);
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(bytes, { headers: { "Content-Type": "image/jpeg" } }));
+    const response = await getMusicCover(new Request(`http://localhost/api/music/cover?type=release&mbid=${RELEASE_MBID}`));
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+    expect(db.coverImageCache.findUnique).not.toHaveBeenCalled();
+    expect(db.coverImageCache.upsert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not found", () => new Response(null, { status: 404 })],
+    ["upstream failure", () => new Response(null, { status: 503 })],
+    ["non-image", () => new Response("error", { headers: { "Content-Type": "text/html" } })],
+    ["empty image", () => new Response(new Uint8Array(), { headers: { "Content-Type": "image/png" } })],
+    ["oversized image", () => new Response(new Uint8Array([1]), { headers: { "Content-Type": "image/png", "Content-Length": "5242881" } })],
+  ])("does not persist %s responses as image bytes", async (_label, makeResponse) => {
+    globalThis.fetch = vi.fn().mockImplementation(makeResponse);
+    const response = await getMusicCover(new Request(`http://localhost/api/music/cover?type=release&mbid=${RELEASE_MBID}`));
+    expect(response.headers.get("content-type")).toContain("image/svg+xml");
+    expect(db.coverImageCache.upsert).not.toHaveBeenCalled();
   });
 
   it("serves SVG fallback immediately when CoverCache has a fresh NOT_FOUND entry", async () => {

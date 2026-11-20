@@ -64,7 +64,7 @@ export default function HeadphonesVideo() {
             />
           )}
         </div>
-        <p className={styles.visualCaption}>De lo que escuchas<br /><span>a lo que está por descubrir.</span></p>
+        <p className={styles.visualCaption}>De lo que escuchas <br /><span>a lo que está por descubrir.</span></p>
       </div>
       {!failed && (
         <button
@@ -74,7 +74,17 @@ export default function HeadphonesVideo() {
           aria-label={playing ? "Pausar rotación de auriculares" : "Reanudar rotación de auriculares"}
           onClick={togglePlayback}
         >
-          <span aria-hidden="true">{playing ? "[ II ]" : "[ > ]"}</span> {playing ? "Pausar" : "Reanudar"}
+          {playing ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <rect x="2" y="2" width="2.5" height="8" />
+              <rect x="7.5" y="2" width="2.5" height="8" />
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+              <polygon points="3,2 10,6 3,10" />
+            </svg>
+          )}
+          {playing ? "Pausar" : "Reanudar"}
         </button>
       )}
     </div>

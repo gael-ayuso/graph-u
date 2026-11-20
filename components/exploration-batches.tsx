@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Song } from "@/lib/musicbrainz-types";
 import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
 import { CoverArt } from "@/components/shared/cover-art";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 import { EXPLORATION_CAP, SELECTION_CAP, remainingCapacity } from "@/lib/recommendation-exploration";
 import { useRecommendationExploration } from "@/components/recommendation-exploration-provider";
 import { useRecommendationLibrary, RecommendationActions } from "@/components/recommendation-library";
@@ -56,6 +57,15 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
+function scrollToGraphPanelIfPresent(event?: { preventDefault?: () => void }) {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+  if (window.location?.pathname !== "/explorar/grafo") return;
+  const panel = document.getElementById("graph-panel");
+  if (!panel) return;
+  event?.preventDefault?.();
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 /** Shared controls operate on the layout-scoped exploration, independently of Mi lista. */
 export function ExplorationControls({
   saved,
@@ -69,14 +79,32 @@ export function ExplorationControls({
   const { state, start, expand, alternatives, cancel, reset } = useRecommendationExploration();
   const { accountScope } = useRecommendationLibrary();
   const [confirmReset, setConfirmReset] = useState(false);
+  const [elapsed, setElapsed] = useState<{ request: unknown; seconds: number }>({
+    request: null,
+    seconds: 0,
+  });
   const startRequestedRef = useRef(false);
   const pending = !!state.pending;
+  const elapsedSeconds = pending && elapsed.request === state.pending ? elapsed.seconds : 0;
   const capacity = remainingCapacity(state);
   const blocked = pending || accountScope === "loading";
   const attempt = state.lastAttempt;
   const response = attempt?.response;
   const retryDisabled = blocked || (!capacity && attempt?.request.kind !== "start")
     || (attempt?.request.kind === "expand" && !state.selectedIds.length);
+
+  useEffect(() => {
+    if (!state.pending) return;
+    const currentRequest = state.pending;
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsed({
+        request: currentRequest,
+        seconds: Math.max(1, Math.floor((Date.now() - startedAt) / 1000)),
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [state.pending]);
 
   const handleStart = async (seeds: Song[]) => {
     startRequestedRef.current = !!onStartSuccess;
@@ -105,6 +133,10 @@ export function ExplorationControls({
     else void alternatives();
   };
 
+  const pendingStatusText = elapsedSeconds > 0
+    ? `Buscando recomendaciones en MusicBrainz y Last.fm… (${elapsedSeconds} s). Puedes cancelar la consulta.`
+    : "Buscando recomendaciones; puedes cancelar la consulta.";
+
   return <section className="song-panel recommendations-panel exploration-controls" aria-labelledby="exploration-title" aria-busy={pending}>
     <div className="song-panel-header"><h2 id="exploration-title">Exploración</h2><span>{Object.keys(state.songsById).length} / {EXPLORATION_CAP} canciones</span></div>
     <p className="list-note">{state.id ? `Canciones iniciales: ${state.originals.map((song) => `${song.title} · ${song.artist}`).join(", ")}.` : "Inicia con las primeras 10 canciones de Mi lista."} La exploración se conserva en esta pestaña hasta que la reinicies.</p>
@@ -129,7 +161,11 @@ export function ExplorationControls({
         : <p className="list-note">Mi lista está vacía. <Link href="/explorar">Busca y añade canciones</Link> para iniciar.</p>
     )}
     {state.batches.length > 0 && <p className="list-note">Seleccionadas: {state.selectedIds.length} / {SELECTION_CAP}. {capacity ? `Quedan ${capacity} espacios en la exploración.` : "Límite alcanzado. Reinicia o reemplaza para explorar de nuevo."}</p>}
-    <p className="list-note" role="status" aria-live="polite">{pending ? "Buscando recomendaciones; puedes cancelar la consulta." : attempt?.error ? "La consulta no se completó. Puedes reintentar." : response ? response.recommendations.length ? `Se añadieron ${response.recommendations.length} canciones nuevas.` : "No encontramos canciones nuevas en esta consulta." : ""}</p>
+    <p className={`list-note${pending ? " exploration-status-pending" : ""}`} role="status" aria-live="polite">
+      {pending && <span className="exploration-pending-indicator" aria-hidden="true" />}
+      {pending ? pendingStatusText : attempt?.error ? "La consulta no se completó. Puedes reintentar." : response ? response.recommendations.length ? `Se añadieron ${response.recommendations.length} canciones nuevas.` : "No encontramos canciones nuevas en esta consulta." : ""}
+    </p>
+    {pending && state.batches.length === 0 && <LoadingSkeleton rows={3} />}
     {!pending && attempt?.error && <div className="exploration-attempt" role="alert"><p>{attempt.error}</p><button className="demo-button demo-button-small" type="button" disabled={retryDisabled} onClick={retry}>Volver a intentar</button></div>}
     {!pending && response && !response.recommendations.length && <><div className="exploration-attempt"><p>La consulta no añadió una tanda; revisa los motivos por canción.</p><button className="demo-button demo-button-small" type="button" disabled={retryDisabled} onClick={retry}>Volver a intentar</button></div><RecommendationCoverage results={response.seedResults} seeds={attempt!.request.seeds} /></>}
   </section>;
@@ -173,7 +209,14 @@ export function ExplorationBatches() {
 
       <div className="exploration-batches-toolbar">
         <div className="exploration-batches-toolbar-left">
-          <Link href="/explorar/grafo" className="batch-graph-cta" onClick={() => focus(null)}>
+          <Link
+            href="/explorar/grafo"
+            className="batch-graph-cta"
+            onClick={(event) => {
+              focus(null);
+              scrollToGraphPanelIfPresent(event);
+            }}
+          >
             <GraphIcon />
             <span>Ver grafo</span>
           </Link>
@@ -238,7 +281,10 @@ export function ExplorationBatches() {
                   href="/explorar/grafo"
                   className="batch-graph-link"
                   aria-current={isFocused ? "true" : undefined}
-                  onClick={() => focus(batch.id)}
+                  onClick={(event) => {
+                    focus(batch.id);
+                    scrollToGraphPanelIfPresent(event);
+                  }}
                 >
                   <GraphIcon />
                   <span>Ver grafo de esta tanda</span>

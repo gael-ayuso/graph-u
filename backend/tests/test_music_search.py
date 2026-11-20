@@ -9,9 +9,10 @@ import psycopg
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app.music_search import can_fuzz, field_score, fuzzy_query, rank_candidates
+
 from app import musicbrainz as mb
 from app import musicbrainz_db as db
-from app.music_search import can_fuzz, field_score, fuzzy_query, rank_candidates
 
 SONG_ID = "d9b46ecb-5472-4dcd-8fa4-dd6723189e27"
 ROW = (UUID(SONG_ID), "Reckoner", "Radiohead", None, 290000, None)

@@ -352,9 +352,12 @@ describe("app/favoritos/page.tsx", () => {
     let tree = reactTestRuntime.getTree();
 
     const allLinks = findHostNodes(tree, (n) => n.tag === "a");
-    const hrefs = allLinks.map((n) => n.props.href);
+    const hrefs = allLinks.map((n) => String(n.props.href));
     expect(hrefs).toContain("/explorar");
-    expect(hrefs).toContain("/explorar/grafo");
+    expect(hrefs).toContain("/explorar?q=Weird+Fishes&artist=Radiohead");
+    expect(hrefs).toContain(
+      `/explorar/grafo?seed=${TRACK_1.recordingMbid}&title=Weird+Fishes&artist=Radiohead`,
+    );
     expect(hrefs).not.toContain("/demo");
     expect(hrefs).not.toContain("/recomendaciones");
     expect(getTextContent(tree)).not.toContain("Recomendaciones");

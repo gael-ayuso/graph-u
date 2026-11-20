@@ -9,8 +9,6 @@ import psycopg
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app import musicbrainz as mb
-from app import musicbrainz_db as db
 from app.music_search import (
     RESULT_LIMIT,
     can_fuzz,
@@ -19,6 +17,9 @@ from app.music_search import (
     rank_candidates,
     words,
 )
+
+from app import musicbrainz as mb
+from app import musicbrainz_db as db
 
 RELEASE_FILTER = "status:official AND (primarytype:single OR primarytype:ep OR primarytype:album)"
 OFFICIAL = [{"title": "In Rainbows", "status": "Official", "release-group": {"primary-type": "Album"}}]

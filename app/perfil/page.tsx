@@ -208,8 +208,11 @@ export default function PerfilPage() {
 
   if (!isClerkLoaded || isLoading) {
     return (
-      <AppShell title="Perfil y preferencias" subtitle="Gestiona tu cuenta y parámetros del motor musical.">
-        <LoadingState message="Cargando configuración de cuenta..." />
+      <AppShell
+        title="Perfil y preferencias"
+        subtitle="Administra tu identidad en GraphU y ajusta cómo se generan tus recomendaciones."
+      >
+        <LoadingState variant="profile" message="Cargando configuración de cuenta..." />
       </AppShell>
     );
   }
@@ -221,6 +224,7 @@ export default function PerfilPage() {
         subtitle="Administra tu identidad en GraphU y ajusta cómo se generan tus recomendaciones."
       >
         <EmptyState
+          eyebrow="[ SESIÓN REQUERIDA ]"
           title="Inicia sesión para ver tu perfil"
           description="Necesitas una sesión activa para editar tus datos de perfil, guardar preferencias de recomendación o administrar tu cuenta."
           action={

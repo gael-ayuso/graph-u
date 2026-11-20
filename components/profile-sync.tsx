@@ -14,6 +14,7 @@ export function ProfileSync() {
     let retry: ReturnType<typeof setTimeout> | undefined;
 
     async function sync(attempt = 0) {
+      let status: number | null = null;
       try {
         const response = await fetch("/api/me", {
           credentials: "same-origin",
@@ -21,6 +22,7 @@ export function ProfileSync() {
           signal: controller.signal,
         });
         if (response.ok || response.status === 401) return;
+        status = response.status;
       } catch {
         if (controller.signal.aborted) return;
       }
@@ -29,7 +31,11 @@ export function ProfileSync() {
       if (attempt < 2) {
         retry = setTimeout(() => void sync(attempt + 1), 1000 * (attempt + 1));
       } else {
-        console.error("Unable to synchronize the signed-in profile. Reload to retry.");
+        console.warn(
+          status
+            ? `Unable to synchronize the signed-in profile (HTTP ${status}). Reload to retry.`
+            : "Unable to synchronize the signed-in profile. Reload to retry.",
+        );
       }
     }
 

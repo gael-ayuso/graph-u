@@ -72,6 +72,7 @@ export async function GET(request: Request) {
           "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
           "X-Cover-Status": "FOUND",
           "X-Cover-Cache": resolved.metadata.cached ? "HIT" : "MISS",
+          "X-Cover-Image-Cache": resolved.image.cached ? "HIT" : "MISS",
         },
       });
     }

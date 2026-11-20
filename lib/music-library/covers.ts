@@ -24,6 +24,7 @@ export interface CoverMetadata {
 export interface CoverBinaryPayload {
   bytes: Uint8Array;
   contentType: string;
+  cached?: boolean;
 }
 
 export interface CoverResolution {
@@ -42,6 +43,7 @@ const MB_API_BASE = "https://musicbrainz.org/ws/2";
 
 const globalForCovers = globalThis as unknown as {
   graphuCoverInFlight?: Map<string, Promise<CoverResolution>>;
+  graphuCoverImageInFlight?: Map<string, Promise<ProbeOutcome>>;
   graphuMbLastRequestAt?: number;
 };
 
@@ -366,6 +368,61 @@ type ProbeOutcome =
   | { kind: "error" };
 
 async function fetchCandidate(url: string, needBinary: boolean): Promise<ProbeOutcome> {
+  if (!needBinary) return fetchCandidateUncached(url, false);
+
+  // Different recordings/artists can resolve to the same album image.
+  const inFlight = (globalForCovers.graphuCoverImageInFlight ??= new Map());
+  const existing = inFlight.get(url);
+  if (existing) return existing;
+
+  const promise = fetchPersistentImage(url).finally(() => inFlight.delete(url));
+  inFlight.set(url, promise);
+  return promise;
+}
+
+async function fetchPersistentImage(url: string): Promise<ProbeOutcome> {
+  if (process.env.DATABASE_URL?.trim()) {
+    try {
+      const row = await getDb().coverImageCache.findUnique({ where: { url } });
+      if (
+        row &&
+        Date.now() - row.fetchedAt.getTime() < FOUND_REFRESH_TTL_MS &&
+        row.bytes.byteLength > 0 &&
+        row.bytes.byteLength <= MAX_COVER_BYTES &&
+        row.contentType.startsWith("image/")
+      ) {
+        return {
+          kind: "found",
+          url,
+          image: { bytes: row.bytes, contentType: row.contentType, cached: true },
+        };
+      }
+    } catch {
+      // Missing migrations or unavailable storage must not prevent image serving.
+    }
+  }
+
+  const outcome = await fetchCandidateUncached(url, true);
+  if (outcome.kind === "found" && outcome.image && process.env.DATABASE_URL?.trim()) {
+    try {
+      const data = {
+        bytes: Buffer.from(outcome.image.bytes),
+        contentType: outcome.image.contentType,
+        fetchedAt: new Date(),
+      };
+      await getDb().coverImageCache.upsert({
+        where: { url },
+        create: { url, ...data },
+        update: data,
+      });
+    } catch {
+      // Still return the downloaded image if persistence is temporarily unavailable.
+    }
+  }
+  return outcome;
+}
+
+async function fetchCandidateUncached(url: string, needBinary: boolean): Promise<ProbeOutcome> {
   try {
     const method = needBinary ? "GET" : "HEAD";
     let res = await fetch(url, {

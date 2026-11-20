@@ -16,6 +16,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const graphuLocalization = {
+  ...esES,
+  signIn: {
+    ...esES.signIn,
+    start: {
+      ...esES.signIn?.start,
+      actionLink: "Regístrate",
+    },
+  },
+};
+
 export const metadata: Metadata = {
   title: "GraphU | Conecta tus gustos. Descubre otra canción.",
   description: "Explora recomendaciones y conexiones entre artistas y canciones con datos de MusicBrainz. Guarda favoritos y reúne tus descubrimientos en playlists.",
@@ -25,15 +36,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
+      data-scroll-behavior="smooth"
       className={`${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <ClerkProvider
-          localization={esES}
+          localization={graphuLocalization}
           signInUrl="/sign-in"
           signUpUrl="/sign-up"
-          signInFallbackRedirectUrl="/sign-in"
-          signUpFallbackRedirectUrl="/sign-in"
+          signInFallbackRedirectUrl="/explorar"
+          signUpFallbackRedirectUrl="/explorar"
           appearance={{
             theme: shadcn,
             variables: {

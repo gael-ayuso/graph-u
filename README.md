@@ -246,6 +246,7 @@ La generación de Prisma durante el build no necesita una conexión activa a Pos
 
 ## Documentación
 
+- [Caché persistente de portadas](docs/COVER_CACHE.md): almacenamiento de imágenes en PostgreSQL, despliegue, verificación y mantenimiento.
 - [API de consultas de la aplicación](docs/APP_API.md): endpoints autenticados de preferencias, favoritos, playlists e historial, con ejemplos y paginación.
 - [Base de datos local con Docker](docs/DATABASE_LOCAL.md): puesta en marcha para el equipo, migraciones, consulta de tablas y solución de problemas.
 - [Actualizar el catálogo de MusicBrainz](docs/MUSICBRAINZ_UPDATE.md): respaldo, replicación incremental, verificación y programación opcional en Docker Desktop.

@@ -25,6 +25,7 @@ describe("automatic profile synchronization", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("synchronizes an already active session without requiring a new login", async () => {
@@ -50,6 +51,20 @@ describe("automatic profile synchronization", () => {
     const cleanup = mount();
     await vi.runAllTimersAsync();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    cleanup?.();
+  });
+
+  it("warns without triggering a console error overlay after exhausting retries", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cleanup = mount();
+    await vi.runAllTimersAsync();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Unable to synchronize the signed-in profile (HTTP 503). Reload to retry.",
+    );
+    expect(errorSpy).not.toHaveBeenCalled();
     cleanup?.();
   });
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AppNavbar } from "@/components/shared/app-navbar";
 import { SongDemo } from "@/components/song-demo";
+import motion from "@/components/shared/navigation-motion.module.css";
 
 export const metadata: Metadata = { title: "Explorar | GraphU" };
 
@@ -10,7 +11,7 @@ export default function ExplorePage() {
     <div className="min-h-screen flex flex-col bg-[var(--forest)] text-[var(--cream)] font-mono">
       <AppNavbar />
       <div className="landing flex flex-1 flex-col">
-        <main className="demo-main">
+        <main className={`demo-main ${motion.content}`}>
           <div className="mb-4">
             <Link href="/" className="demo-back">← Volver al inicio</Link>
           </div>

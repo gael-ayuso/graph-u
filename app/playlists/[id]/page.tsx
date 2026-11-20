@@ -490,7 +490,7 @@ export default function PlaylistDetailPage() {
   if (!isLoaded || isDetailLoading || isTracksLoading) {
     return (
       <AppShell title="Cargando playlist..." subtitle="Obteniendo canciones de la lista.">
-        <LoadingState message="Cargando detalle de playlist..." />
+        <LoadingState variant="playlist-detail" message="Cargando detalle de playlist..." />
       </AppShell>
     );
   }
@@ -502,6 +502,7 @@ export default function PlaylistDetailPage() {
         subtitle="Colección personalizada en GraphU."
       >
         <EmptyState
+          eyebrow="[ SESIÓN REQUERIDA ]"
           title="Inicia sesión para ver esta playlist"
           description="Necesitas una sesión activa para abrir tus listas y editar sus canciones."
           action={
@@ -781,6 +782,8 @@ export default function PlaylistDetailPage() {
               ! {searchError}
             </p>
           )}
+
+          {isSearching && <div className="mt-4"><LoadingState rows={3} message="Buscando canciones en MusicBrainz..." /></div>}
 
           {hasSearched && !isSearching && !searchError && (
             <div className="mt-4">

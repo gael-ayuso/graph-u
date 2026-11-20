@@ -124,6 +124,18 @@ model CoverCache {
   @@schema("app")
 }
 
+// Image bytes are shared across entities that resolve to the same CAA URL.
+model CoverImageCache {
+  url         String   @id
+  bytes       Bytes
+  contentType String   @db.VarChar(100)
+  fetchedAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([fetchedAt])
+  @@map("cover_image_cache")
+  @@schema("app")
+}
+
 model RecommendationModel {
   id         String                  @id @default(uuid())
   name       String                  @db.VarChar(100)

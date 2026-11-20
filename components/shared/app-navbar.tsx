@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import { GraphUUserButton } from "./graphu-user-button";
+import motion from "./navigation-motion.module.css";
 
 const NAV_LINKS = [
   { href: "/explorar", label: "Explorar" },
@@ -42,9 +43,9 @@ export function AppNavbar() {
                 key={link.href}
                 href={link.href}
                 aria-current={isActive ? "page" : undefined}
-                className={`px-2 py-1.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--clay)] ${
+                className={`${motion.link} px-2 py-1.5 text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--clay)] ${
                   isActive
-                    ? "border-b-2 border-[var(--clay)] font-bold text-[var(--clay)]"
+                    ? "font-bold text-[var(--clay)]"
                     : "text-[var(--cream)] hover:text-[var(--clay)]"
                 }`}
               >

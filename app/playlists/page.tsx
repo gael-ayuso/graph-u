@@ -190,8 +190,11 @@ export default function PlaylistsPage() {
 
   if (!isLoaded || isLoading) {
     return (
-      <AppShell title="Playlists" subtitle="Organiza tus descubrimientos en listas personalizadas.">
-        <LoadingState message="Cargando tus playlists..." />
+      <AppShell
+        title="Playlists"
+        subtitle="Crea, organiza y reordena colecciones con las canciones que descubres en GraphU."
+      >
+        <LoadingState variant="playlists" rows={6} message="Cargando tus playlists..." />
       </AppShell>
     );
   }
@@ -203,6 +206,7 @@ export default function PlaylistsPage() {
         subtitle="Crea, organiza y reordena colecciones con las canciones que descubres en GraphU."
       >
         <EmptyState
+          eyebrow="[ SESIÓN REQUERIDA ]"
           title="Inicia sesión para ver tus playlists"
           description="Necesitas una sesión activa para crear listas personalizadas, agregar canciones del catálogo y conservar tu orden."
           action={

@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { SignUp } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { AuthShell } from "@/components/auth-shell";
 import { AUTH_FORM_ELEMENTS } from "@/lib/clerk-appearance";
+
+export const metadata: Metadata = { title: "Crear cuenta | GraphU" };
 
 export default function SignUpPage() {
   return (

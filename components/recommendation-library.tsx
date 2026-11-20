@@ -6,12 +6,14 @@ import { useAuth } from "@clerk/nextjs";
 import type { Recommendation, Song } from "@/lib/musicbrainz-types";
 import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
 import { CoverArt } from "@/components/shared/cover-art";
+import { LoadingSkeleton } from "@/components/shared/loading-skeleton";
 
 type Vote = "LIKE" | "DISLIKE" | null;
 type ActionSong = Pick<Recommendation, "song" | "resultId">;
 type Library = {
   songs: Song[]; votes: Record<string, Vote>; busy: Set<string>; ready: boolean;
-  accountScope: string; account: string | null | undefined; error: string; notice: string;
+  accountScope: string; account: string | null | undefined; error: string; errorTargetKey: string | null;
+  notice: string; noticeTargetKey: string | null;
   retryLoad: () => void;
   act: (rec: ActionSong, requestId: string | undefined, action: "save" | "LIKE" | "DISLIKE") => void;
 };
@@ -55,7 +57,9 @@ function LibrarySession({ account, accountScope, loaded, children }: { account: 
   const localUnavailable = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [errorTargetKey, setErrorTargetKey] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [noticeTargetKey, setNoticeTargetKey] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const state = useRef({ songs, votes });
   useEffect(() => { state.current = { songs, votes }; }, [songs, votes]);
@@ -80,12 +84,16 @@ function LibrarySession({ account, accountScope, loaded, children }: { account: 
             state.current = data;
             setSongs(data.songs);
             setVotes(data.votes);
-          } catch { localUnavailable.current = true; setNotice("El almacenamiento local no está disponible. Los cambios durarán mientras permanezcas en esta página."); }
+          } catch { localUnavailable.current = true; setNotice("El almacenamiento local no está disponible. Los cambios durarán mientras permanezcas en esta página."); setNoticeTargetKey(null); }
         }
         setReady(true);
         setError("");
+        setErrorTargetKey(null);
       } catch (failure) {
-        if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "No se pudieron cargar tus canciones guardadas.");
+        if (!controller.signal.aborted) {
+          setError(failure instanceof Error ? failure.message : "No se pudieron cargar tus canciones guardadas.");
+          setErrorTargetKey(null);
+        }
       }
     }
     void load();
@@ -113,6 +121,7 @@ function LibrarySession({ account, accountScope, loaded, children }: { account: 
     pending.current.add(rec.song.id);
     setBusy(new Set(pending.current));
     setError("");
+    setErrorTargetKey(null);
     if (!account && !localUnavailable.current) {
       try { state.current = localLibrary(); } catch { localUnavailable.current = true; }
     }
@@ -148,8 +157,12 @@ function LibrarySession({ account, accountScope, loaded, children }: { account: 
         catch { persistent = false; localUnavailable.current = true; }
       }
       setNotice(`${action === "save" ? saved ? "Canción quitada de guardadas" : "Canción guardada" : value === null ? "Evaluación quitada" : "Evaluación guardada"}: ${rec.song.title}.${persistent ? "" : " Solo en esta página: el almacenamiento local no está disponible."}`);
+      setNoticeTargetKey(key);
     } catch (failure) {
-      if (active.current && !controller.signal.aborted) setError(failure instanceof Error ? failure.message : "No se pudo guardar el cambio. Inténtalo de nuevo.");
+      if (active.current && !controller.signal.aborted) {
+        setError(failure instanceof Error ? failure.message : "No se pudo guardar el cambio. Inténtalo de nuevo.");
+        setErrorTargetKey(key);
+      }
     } finally {
       actions.current.delete(controller);
       pending.current.delete(rec.song.id);
@@ -157,7 +170,7 @@ function LibrarySession({ account, accountScope, loaded, children }: { account: 
     }
   }
 
-  return <Context.Provider value={{ songs, votes, busy, ready, accountScope, account, error, notice, retryLoad: () => setRetry((value) => value + 1), act }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ songs, votes, busy, ready, accountScope, account, error, errorTargetKey, notice, noticeTargetKey, retryLoad: () => setRetry((value) => value + 1), act }}>{children}</Context.Provider>;
 }
 
 export function SavedRecommendationsPanel() {
@@ -168,7 +181,7 @@ export function SavedRecommendationsPanel() {
       <p className="list-note">{account ? "Guardadas en tu cuenta." : "Guardadas en este navegador, sin iniciar sesión."} Guardar no cambia las canciones usadas para recomendar.</p>
       {error && <p className="list-note" role="alert">{error} {!ready && <button type="button" className="demo-button demo-button-small" onClick={retryLoad}>Reintentar</button>}</p>}
       <p className="list-note" role="status">{notice || "Evalúa cada recomendación con Me gusta o No me interesa. Puedes cambiar tu respuesta."}</p>
-      {songs.length ? <ul className="saved-songs">{songs.map((song) => <li key={song.id} className="saved-recommendation"><CoverArt src={resolveSongCoverUrl(song)} alt={`Portada de ${song.title}`} size={44} label={song.artist} /><div className="song-info"><a className="song-title" href={`https://musicbrainz.org/recording/${song.id}`} target="_blank" rel="noreferrer">{song.title}<span className="sr-only"> (MusicBrainz, nueva pestaña)</span></a><p>{song.artist}</p></div><button type="button" className="remove-song" disabled={busy.size > 0} onClick={() => act({ song }, undefined, "save")} aria-label={`Quitar ${song.title} de guardadas`}>Quitar</button></li>)}</ul>
+      {!ready && !error && !songs.length ? <><p className="sr-only">Cargando canciones guardadas…</p><LoadingSkeleton rows={3} /></> : songs.length ? <ul className="saved-songs">{songs.map((song) => <li key={song.id} className="saved-recommendation"><CoverArt src={resolveSongCoverUrl(song)} alt={`Portada de ${song.title}`} size={44} label={song.artist} /><div className="song-info"><a className="song-title" href={`https://musicbrainz.org/recording/${song.id}`} target="_blank" rel="noreferrer">{song.title}<span className="sr-only"> (MusicBrainz, nueva pestaña)</span></a><p>{song.artist}</p></div><button type="button" className="remove-song" disabled={busy.size > 0} onClick={() => act({ song }, undefined, "save")} aria-label={`Quitar ${song.title} de guardadas`}>Quitar</button></li>)}</ul>
         : <p className="song-empty">{ready ? "Aún no guardas canciones. Pulsa Guardar en una recomendación." : error ? "Tus canciones no están disponibles. Reintenta la carga." : "Cargando canciones guardadas…"}</p>}
     </section>
   );
@@ -187,14 +200,16 @@ export function RecommendationActions({ recommendation: rec, requestId, showStat
   const saved = library.songs.some((song) => song.id === rec.song.id);
   const vote = library.votes[library.account ? key : rec.song.id];
   const disabled = !library.ready || library.busy.has(rec.song.id);
+  const matchesError = library.errorTargetKey === key;
+  const matchesNotice = library.noticeTargetKey === key || (library.noticeTargetKey === null && library.notice.includes(`: ${rec.song.title}.`));
   return <div className="recommendation-controls">
     <div className="recommendation-actions" role="group" aria-label={`Guardar o evaluar ${rec.song.title}, ${rec.song.artist}`} aria-busy={library.busy.has(rec.song.id)}>
       <button type="button" className="demo-button demo-button-small" aria-pressed={saved} disabled={disabled} onClick={() => library.act(rec, requestId, "save")}><RecommendationActionIcon action="save" />{saved ? "Guardada · Quitar" : "Guardar"}</button>
       <button type="button" className="feedback-button" aria-pressed={vote === "LIKE"} disabled={disabled} title={vote === "LIKE" ? "Quitar Me gusta" : "Me gusta esta recomendación"} onClick={() => library.act(rec, requestId, "LIKE")}><RecommendationActionIcon action="like" />Me gusta</button>
       <button type="button" className="feedback-button" aria-pressed={vote === "DISLIKE"} disabled={disabled} title={vote === "DISLIKE" ? "Quitar No me interesa" : "No me interesa esta recomendación"} onClick={() => library.act(rec, requestId, "DISLIKE")}><RecommendationActionIcon action="dislike" />No me interesa</button>
     </div>
-    {showStatus && !library.ready && <p className="recommendation-action-status" role="status">{library.error || "Cargando controles…"}</p>}
-    {showStatus && library.ready && library.error && <p className="recommendation-action-status" role="alert">{library.error}</p>}
-    {showStatus && !library.error && library.notice.includes(`: ${rec.song.title}.`) && <p className="recommendation-action-status" role="status">{library.notice}</p>}
+    {showStatus && !library.ready && !library.error && <p className="recommendation-action-status">Cargando controles…</p>}
+    {showStatus && library.ready && library.error && matchesError && <p className="recommendation-action-status" role="alert">{library.error}</p>}
+    {showStatus && !library.error && library.notice && matchesNotice && <p className="recommendation-action-status" role="status">{library.notice}</p>}
   </div>;
 }

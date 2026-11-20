@@ -2,11 +2,11 @@
 
 import psycopg
 import pytest
+from app.content import explicit_metadata
 from conftest import artist_dict, song_dict, uid
 
 from app import main
 from app import musicbrainz as mb
-from app.content import explicit_metadata
 
 # isolate_external_sources reemplaza mb.recording_check; estas pruebas usan la función real.
 recording_check = mb.recording_check

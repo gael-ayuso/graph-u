@@ -3,19 +3,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Network, Node, Options } from "react-vis-graph-wrapper";
 import dynamic from "next/dynamic";
-import type { GraphNode } from "@/lib/musicbrainz-types";
-import { resolveSongCoverUrl } from "@/lib/music-library/cover-url";
+import type { GraphNode, Song } from "@/lib/musicbrainz-types";
+import { isCoverUuid, resolveSongCoverUrl } from "@/lib/music-library/cover-url";
 import { CoverArt } from "@/components/shared/cover-art";
+import { LoadingState } from "@/components/shared/status-states";
 import { projectRecommendationGraph } from "@/lib/recommendation-graph";
 import { SELECTION_CAP } from "@/lib/recommendation-exploration";
-import { readSongs, snapshot, subscribe } from "@/lib/saved-song-list";
+import { readSongs, snapshot, subscribe, writeSongs } from "@/lib/saved-song-list";
 import { RecommendationCoverage } from "@/components/recommendation-coverage";
-import { RecommendationActions, SavedRecommendationsPanel } from "@/components/recommendation-library";
+import { RecommendationActions, SavedRecommendationsPanel, useRecommendationLibrary } from "@/components/recommendation-library";
 import { useRecommendationExploration } from "@/components/recommendation-exploration-provider";
 import { BatchSelector, ExplorationBatches, ExplorationControls } from "@/components/exploration-batches";
 
 // vis-network usa window: se carga solo en el navegador.
-const VisGraph = dynamic(() => import("react-vis-graph-wrapper"), { ssr: false });
+const VisGraph = dynamic(() => import("react-vis-graph-wrapper"), {
+  ssr: false,
+  loading: () => <LoadingState variant="graph" message="Cargando visualización del grafo..." />,
+});
 
 export type VisNetworkLike = {
   renderer?: unknown;
@@ -132,7 +136,7 @@ const OPTIONS = {
   edges: {
     width: 1.2,
     color: { color: COLORS.cream, highlight: COLORS.seed, hover: COLORS.cream, inherit: false, opacity: 0.35 },
-    arrows: { to: { enabled: false } },
+    arrows: { to: { enabled: true, scaleFactor: 0.7 } },
     smooth: { enabled: true, type: "continuous", roundness: 0.15 },
     selectionWidth: 1.5,
   },
@@ -144,7 +148,7 @@ const HIERARCHICAL_OPTIONS: Options = {
   autoResize: true,
   layout: { hierarchical: { direction: "LR", sortMethod: "directed", levelSeparation: 230, nodeSpacing: 64 } },
   physics: false,
-  edges: { color: { color: COLORS.olive, highlight: COLORS.seed }, arrows: { to: { enabled: false } }, smooth: { enabled: true, type: "cubicBezier", forceDirection: "horizontal", roundness: 0.4 } },
+  edges: { color: { color: COLORS.olive, highlight: COLORS.seed }, arrows: { to: { enabled: true, scaleFactor: 0.7 } }, smooth: { enabled: true, type: "cubicBezier", forceDirection: "horizontal", roundness: 0.4 } },
   interaction: OPTIONS.interaction,
 };
 
@@ -158,9 +162,11 @@ function motionSnapshot() { return window.matchMedia(reducedMotionQuery).matches
 function serverMotionSnapshot() { return true; }
 
 export function GraphExplorer() {
-  const { state, select } = useRecommendationExploration();
+  const { accountScope } = useRecommendationLibrary();
+  const { state, select, start } = useRecommendationExploration();
   const networkRef = useRef<Network | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const seedHandledRef = useRef(false);
   const [view, setView] = useState<GraphView>("free");
   const reducedMotion = useSyncExternalStore(subscribeMotion, motionSnapshot, serverMotionSnapshot);
   const [paused, setPaused] = useState(true);
@@ -170,6 +176,47 @@ export function GraphExplorer() {
     : { ...OPTIONS, physics: { ...OPTIONS.physics, enabled: motionEnabled } }, [view, motionEnabled]);
   const raw = useSyncExternalStore(subscribe, snapshot, () => null);
   const saved = useMemo(() => (raw === null ? null : readSongs(raw)), [raw]);
+
+  // Permite abrir /explorar/grafo?seed=<mbid>&title=<título>&artist=<artista> desde Favoritos.
+  useEffect(() => {
+    if (seedHandledRef.current || accountScope === "loading" || typeof window === "undefined" || !window.location?.search) {
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const seedId = params.get("seed")?.trim().toLowerCase() ?? "";
+    const title = params.get("title")?.trim() ?? "";
+    const artist = params.get("artist")?.trim() ?? "";
+    if (!isCoverUuid(seedId) || !title || !artist) return;
+
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled || seedHandledRef.current) return;
+      seedHandledRef.current = true;
+      const seedSong: Song = {
+        id: seedId,
+        title,
+        artist,
+        release: null,
+        duration: null,
+        comment: null,
+      };
+      const currentSongs = readSongs(snapshot());
+      if (!currentSongs.some((song) => song.id === seedSong.id)) {
+        writeSongs([seedSong, ...currentSongs]);
+      }
+      const alreadyExplored =
+        state.batches.length > 0 &&
+        state.originals.length === 1 &&
+        state.originals[0].id === seedSong.id;
+      if (!alreadyExplored && !state.pending) {
+        void start([seedSong]);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountScope, start, state.batches.length, state.originals, state.pending]);
+
   const batch = state.batches.find((entry) => entry.id === state.focusedBatchId);
   const requestKey = batch?.id ?? "all";
   const seeds = useMemo(() => batch?.inputs ?? [], [batch]);
@@ -359,7 +406,7 @@ export function GraphExplorer() {
   return <>
     <ExplorationControls saved={saved ?? []} />
     <BatchSelector />
-    {state.batches.length > 0 && <section className="song-panel graph-panel" aria-labelledby="graph-title" aria-busy={!!state.pending}>
+    {state.batches.length > 0 && <section id="graph-panel" className="song-panel graph-panel" aria-labelledby="graph-title" aria-busy={!!state.pending}>
       <div className="song-panel-header">
         <h2 id="graph-title">{batch ? "Detalle de tanda" : "Exploración completa"}</h2>
         <ul className="graph-legend">{LEGEND.filter(([type]) => batch || type === "seed" || type === "song").map(([type, label]) => <li key={type}><span style={{ background: COLORS[type] }} aria-hidden="true" />{label}</li>)}</ul>
@@ -440,7 +487,7 @@ export function GraphExplorer() {
         </div>
       </> : <p className="song-empty">No hay nodos para mostrar.</p>}
       {data && <RecommendationCoverage results={data.seedResults} seeds={seeds} />}
-      <p className="search-footnote" aria-live="polite">{selectedDetail ? <>{selectedDetail.label}{selectedDetail.detail && ` · ${selectedDetail.detail}`}{selectedDetail.score !== undefined && ` · ${percent(selectedDetail.score)}`}{reasonText.length > 0 && ` · conectado por ${reasonText.join(", ")}`}</> : selectedSummary ? <>{selectedSummary.song.title} · {selectedSummary.song.artist}{selectedSummary.batchId ? ` · Tanda ${state.batches.findIndex((entry) => entry.id === selectedSummary.batchId) + 1}` : " · canción inicial"}</> : batch ? "Sigue las flechas para explorar las razones de esta tanda." : "Selecciona una canción para consultar su origen."}</p>
+      <p className="search-footnote" aria-live="polite">{selectedDetail ? <>{selectedDetail.label}{selectedDetail.detail && ` · ${selectedDetail.detail}`}{selectedDetail.score !== undefined && ` · ${percent(selectedDetail.score)}`}{reasonText.length > 0 && ` · conectado por ${reasonText.join(", ")}`}</> : selectedSummary ? <>{selectedSummary.song.title} · {selectedSummary.song.artist}{selectedSummary.batchId ? ` · Tanda ${state.batches.findIndex((entry) => entry.id === selectedSummary.batchId) + 1}` : " · canción inicial"}</> : batch ? "Sigue las flechas para explorar las razones de esta tanda." : "Selecciona un nodo en el grafo para resaltar su recorrido."}</p>
     </section>}
     <ExplorationBatches />
     <SavedRecommendationsPanel />

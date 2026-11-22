@@ -5,6 +5,9 @@ import { shadcn } from "@clerk/ui/themes";
 import { Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { ProfileSync } from "@/components/profile-sync";
+import { AsciiTrail } from "@/components/shared/ascii-trail";
+import { SmoothScroll } from "@/components/shared/smooth-scroll";
+import { TextScramble } from "@/components/shared/text-scramble";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { RecommendationLibraryProvider } from "@/components/recommendation-library";
 import { RecommendationExplorationProvider } from "@/components/recommendation-exploration-provider";
@@ -40,6 +43,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <AsciiTrail />
+        <SmoothScroll />
+        <TextScramble />
         <ClerkProvider
           localization={graphuLocalization}
           signInUrl="/sign-in"

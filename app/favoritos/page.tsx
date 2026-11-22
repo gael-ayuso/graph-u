@@ -519,7 +519,7 @@ export default function FavoritosPage() {
         <section
           id="favorites-catalog-panel"
           aria-labelledby="catalog-panel-heading"
-          className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 p-6"
+          className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 backdrop-blur-md p-6"
         >
           <div className="mb-4 flex flex-col gap-3 border-b border-[var(--olive)] pb-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -842,7 +842,7 @@ export default function FavoritosPage() {
             }
           />
         ) : (
-          <ul className="divide-y divide-[var(--olive)] border border-[var(--olive)] bg-[#32302f]/30">
+          <ul className="divide-y divide-[var(--olive)] border border-[var(--olive)] bg-[#32302f]/30 backdrop-blur-md">
             {filteredTracks.map((track, idx) => {
               const isRemoving = pendingTrackMbids.has(track.recordingMbid.toLowerCase());
               const trackCoverSrc =
@@ -865,7 +865,7 @@ export default function FavoritosPage() {
               return (
                 <li
                   key={track.id || track.recordingMbid}
-                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between hover:bg-[#32302f]/70"
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between hover:bg-[#32302f]/70 backdrop-blur-md"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span className="text-xs text-[var(--olive)]">
@@ -959,7 +959,7 @@ export default function FavoritosPage() {
               return (
                 <article
                   key={artist.id || artist.artistMbid}
-                  className="flex flex-col justify-between border border-[var(--olive)] bg-[#32302f]/40 p-5"
+                  className="flex flex-col justify-between border border-[var(--olive)] bg-[#32302f]/40 backdrop-blur-md p-5"
                 >
                   <div className="flex items-start gap-4">
                     <CoverArt

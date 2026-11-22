@@ -42,7 +42,7 @@ export default function HeadphonesVideo() {
   return (
     <div className={styles.heroStage}>
       <div className={styles.heroVisual} aria-hidden="true">
-        <div className={styles.headphonesCanvas}>
+        <div className={styles.headphonesCanvas} data-parallax="-0.3">
           {failed ? (
             <Image src={poster} alt="" width={512} height={512} className={styles.headphonesImage} unoptimized />
           ) : (

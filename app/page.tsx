@@ -6,7 +6,7 @@ import styles from "./page.module.css";
 import HomeHeader from "./home-header";
 import HeadphonesVideo from "./headphones-video";
 import IntroOverlay from "./intro-overlay";
-import HomeMotion from "./home-motion";
+import { Parallax } from "@/components/shared/parallax";
 import { Anton } from "next/font/google";
 
 // Solo el título y el contador del intro usan Anton.
@@ -20,13 +20,13 @@ export default function Home() {
   return (
     <div className={`${styles.page} ${anton.variable}`}>
       <IntroOverlay />
-      <HomeMotion />
+      <Parallax />
       <a className={styles.skip} href="#contenido">Saltar al contenido</a>
       <HomeHeader />
 
       <main id="contenido">
         <section className={styles.hero} aria-labelledby="hero-title">
-          <div className={styles.heroCopy}>
+          <div className={styles.heroCopy} data-parallax="0.22">
             <p className={styles.eyebrow}><span aria-hidden="true">[</span> UN MAPA PARA TUS GUSTOS <span aria-hidden="true">]</span></p>
             <h1 id="hero-title">Conecta tus gustos. <br /><span>Descubre otra canción.</span></h1>
             <p className={styles.intro}>La música lleva a más música. Explora nuevas conexiones entre artistas y canciones con datos de MusicBrainz.</p>
@@ -56,7 +56,7 @@ export default function Home() {
         </section>
 
         <section className={styles.journey} id="recorrido" aria-labelledby="journey-title">
-          <div className={styles.sectionHeading}>
+          <div className={styles.sectionHeading} data-parallax="-0.12">
             <div><p className={styles.eyebrow}>[ EL RECORRIDO ]</p><h2 id="journey-title">De una canción <br />a lo que sigue.</h2></div>
             <p>Tres pasos para explorar tu música desde un mapa de conexiones.</p>
           </div>
@@ -71,7 +71,7 @@ export default function Home() {
               <div className={styles.detailLabel}><span>01</span> EL PUNTO DE PARTIDA</div>
               <div className={styles.startBody}>
                 <div><h3>Todo comienza <br />con una canción.</h3><p>Piensa en una que no te canses de escuchar. Empieza buscando por canción o artista.</p><Link href="/explorar" className={styles.textLink}>Ir a Explorar <span aria-hidden="true">→</span></Link></div>
-                <div className={styles.record}>
+                <div className={styles.record} data-parallax="-0.18">
                   <Image src="/music/in-rainbows.jpg" width={180} height={180} alt="Portada de In Rainbows de Radiohead" />
                   <div><span>CANCIÓN DE EJEMPLO</span><strong>Reckoner</strong><p>Radiohead <br />In Rainbows</p></div>
                 </div>
@@ -83,7 +83,7 @@ export default function Home() {
               <div className={styles.connectionHeading}><div><h3>Hay más por descubrir.</h3><p>Una mirada a cómo se enlazan las canciones dentro del explorador interactivo de grafos.</p></div><span className={styles.badge}>VISTA ILUSTRATIVA</span></div>
               <figure className={styles.map}>
                 <figcaption>MAPA DE CONEXIONES <span> / EJEMPLO</span></figcaption>
-                <div className={styles.nodes}>
+                <div className={styles.nodes} data-parallax="-0.1">
                   <div className={styles.node}><Image src="/music/in-rainbows.jpg" width={112} height={112} alt="" /><div><span>ARTISTA / CANCIÓN</span><strong>Radiohead</strong><p>Reckoner</p></div></div>
                   <div className={styles.connector} aria-hidden="true"><span>○</span><i /><span>◇</span><i /><span>○</span></div>
                   <div className={styles.node}><Image src="/music/discovery.jpg" width={112} height={112} alt="" /><div><span>ARTISTA / CANCIÓN</span><strong>Daft Punk</strong><p>Digital Love</p></div></div>
@@ -109,6 +109,7 @@ export default function Home() {
               width={2560}
               height={443}
               className={styles.connectionsImage}
+              data-parallax-x="0.4"
               unoptimized
             />
           </div>

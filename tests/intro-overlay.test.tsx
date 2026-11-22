@@ -2,9 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clickButton,
   createMemoryStorage,
-  findButtons,
   findHostNodes,
   getTextContent,
   jsxElement,
@@ -70,7 +68,7 @@ describe("IntroOverlay", () => {
     }
   });
 
-  it("stacks the covers with the GRAPH-U title, scatters after the count, and fades out on 'Entrar'", async () => {
+  it("stacks the covers with the GRAPH-U title, scatters after the count, and enters the page on its own", async () => {
     vi.useFakeTimers();
     const { store } = setupWindowEnvironment();
     const onComplete = vi.fn();
@@ -106,11 +104,10 @@ describe("IntroOverlay", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(getOverlay().props["data-phase"]).toBe("scatter");
 
-    // El collage se queda hasta pulsar "Entrar".
-    await vi.advanceTimersByTimeAsync(10_000);
+    // Tras la dispersión entra solo, sin pulsar ningún botón.
+    await vi.advanceTimersByTimeAsync(1799);
     expect(getOverlay().props["data-phase"]).toBe("scatter");
-    clickButton(findButtons(reactTestRuntime.getTree(), /Entrar/i)[0]);
-    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1);
     expect(getOverlay().props["data-phase"]).toBe("exiting");
     expect(store.get(INTRO_STORAGE_KEY)).toBe("1");
 
@@ -119,19 +116,23 @@ describe("IntroOverlay", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("skips the intro at any moment via the 'Saltar intro' button, sets sessionStorage, and unmounts after the fade", async () => {
+  it("has no buttons, but Escape skips the intro, sets sessionStorage, and unmounts after the fade", async () => {
     vi.useFakeTimers();
-    const { store } = setupWindowEnvironment();
+    const { store, mockWindow } = setupWindowEnvironment();
+    const keyListeners: ((event: { key: string }) => void)[] = [];
+    Object.assign(mockWindow, {
+      addEventListener: (_type: string, cb: (event: { key: string }) => void) => keyListeners.push(cb),
+      removeEventListener: vi.fn(),
+    });
     const onComplete = vi.fn();
 
     const mountPromise = reactTestRuntime.mount(jsxElement(IntroOverlay, { onComplete }));
     await vi.advanceTimersByTimeAsync(0);
     await mountPromise;
 
-    const skipButtons = findButtons(reactTestRuntime.getTree(), /Saltar intro/i);
-    expect(skipButtons).toHaveLength(1);
+    expect(findHostNodes(reactTestRuntime.getTree(), (n) => n.tag === "button")).toHaveLength(0);
 
-    clickButton(skipButtons[0]);
+    keyListeners.at(-1)!({ key: "Escape" });
     await vi.advanceTimersByTimeAsync(550);
 
     const overlays = findHostNodes(

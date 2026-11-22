@@ -3,19 +3,22 @@ import Link from "next/link";
 import { AppNavbar } from "@/components/shared/app-navbar";
 import { SongDemo } from "@/components/song-demo";
 import motion from "@/components/shared/navigation-motion.module.css";
+import { AsciiBackdrop, Parallax } from "@/components/shared/parallax";
 
 export const metadata: Metadata = { title: "Explorar | GraphU" };
 
 export default function ExplorePage() {
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--forest)] text-[var(--cream)] font-mono">
+    <div className="relative isolate min-h-screen flex flex-col overflow-x-clip bg-[var(--forest)] text-[var(--cream)] font-mono">
+      <AsciiBackdrop />
+      <Parallax />
       <AppNavbar />
       <div className="landing flex flex-1 flex-col">
         <main className={`demo-main ${motion.content}`}>
           <div className="mb-4">
             <Link href="/" className="demo-back">← Volver al inicio</Link>
           </div>
-          <h1>Busca y crea tu lista.</h1>
+          <h1 data-parallax="0.15">Busca y crea tu lista.</h1>
           <p className="demo-intro">Busca en MusicBrainz, arma tu lista de canciones iniciales y genera tu grafo de recomendaciones.</p>
           <SongDemo />
         </main>

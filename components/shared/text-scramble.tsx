@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import Lenis from "lenis";
-import "lenis/dist/lenis.css";
 
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&*/";
 const SCRAMBLE_MS = 450;
@@ -11,14 +9,18 @@ const SCRAMBLE_MS = 450;
 export function scrambleText(node: Text, random = Math.random) {
   const original = node.textContent ?? "";
   const start = performance.now();
+  let written = original;
   return new Promise<void>((resolve) => {
     const step = (now: number) => {
+      // Si React cambió el texto a mitad (p. ej. «Pausar» → «Reanudar»), se deja el nuevo.
+      if (node.textContent !== written) return resolve();
       const progress = Math.min(1, (now - start) / SCRAMBLE_MS);
       const fixed = Math.floor(progress * original.length);
-      node.textContent =
+      written =
         progress < 1
           ? [...original].map((char, i) => (i < fixed || char.trim() === "" ? char : GLYPHS[Math.floor(random() * GLYPHS.length)])).join("")
           : original;
+      node.textContent = written;
       if (progress < 1) requestAnimationFrame(step);
       else resolve();
     };
@@ -26,13 +28,10 @@ export function scrambleText(node: Text, random = Math.random) {
   });
 }
 
-/** Scroll suave (Lenis) y texto que se descifra al pasar por botones y enlaces de la portada. */
-export default function HomeMotion() {
+/** Texto que se descifra al pasar el ratón por botones y enlaces, en todas las páginas. */
+export function TextScramble() {
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    // ponytail: solo en la portada; en /explorar el grafo usa la rueda para hacer zoom.
-    const lenis = new Lenis({ autoRaf: true, anchors: { offset: -28 } });
 
     const running = new WeakSet<Text>();
     const onOver = (event: PointerEvent) => {
@@ -48,7 +47,6 @@ export default function HomeMotion() {
 
     return () => {
       document.removeEventListener("pointerover", onOver);
-      lenis.destroy();
     };
   }, []);
 

@@ -632,7 +632,7 @@ export default function PlaylistDetailPage() {
 
       {/* Formulario inline para editar nombre/descripción */}
       {isEditing && playlist && (
-        <section className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 p-6">
+        <section className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 backdrop-blur-md p-6">
           <h2 className="mb-4 text-lg font-bold text-[var(--cream)]">Editar datos de la playlist</h2>
           <form
             onSubmit={(e) => {
@@ -716,7 +716,7 @@ export default function PlaylistDetailPage() {
       {showAddPanel && playlist && (
         <section
           aria-labelledby="add-tracks-heading"
-          className="mb-8 border border-[var(--olive)] bg-[#32302f]/60 p-6"
+          className="mb-8 border border-[var(--olive)] bg-[#32302f]/60 backdrop-blur-md p-6"
         >
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -883,7 +883,7 @@ export default function PlaylistDetailPage() {
               }
             />
           ) : (
-            <ul className="divide-y divide-[var(--olive)] border border-[var(--olive)] bg-[#32302f]/30">
+            <ul className="divide-y divide-[var(--olive)] border border-[var(--olive)] bg-[#32302f]/30 backdrop-blur-md">
               {tracks.map((item, idx) => {
                 const displayTitle =
                   item.title ?? `Grabación (${item.recordingId.slice(0, 8)}…)`;
@@ -903,7 +903,7 @@ export default function PlaylistDetailPage() {
                 return (
                   <li
                     key={item.id}
-                    className="flex flex-col gap-3 p-4 hover:bg-[#32302f]/70 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 p-4 hover:bg-[#32302f]/70 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <span className="tabular-nums text-xs font-bold text-[var(--clay)]">

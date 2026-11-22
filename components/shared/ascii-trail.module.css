@@ -1,0 +1,7 @@
+/* Estela ASCII del cursor (la crea AsciiTrail). */
+.glyph { position: fixed; z-index: 80; color: var(--clay); font: 700 18px/1 ui-monospace, monospace; pointer-events: none; animation: trailFade 700ms ease-out forwards; }
+.glyph:nth-child(3n) { color: var(--cream); }
+@keyframes trailFade {
+  from { opacity: .9; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(calc(-50% + var(--drift, 0px)), calc(-50% + 18px)) scale(.6); }
+}

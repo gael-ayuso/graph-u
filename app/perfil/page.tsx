@@ -262,7 +262,7 @@ export default function PerfilPage() {
     >
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* SECCIÓN 1: DATOS DE PERFIL */}
-        <section className="border border-[var(--olive)] bg-[#32302f]/40 p-6">
+        <section className="border border-[var(--olive)] bg-[#32302f]/40 backdrop-blur-md p-6">
           <div className="mb-5 border-b border-[var(--olive)] pb-3">
             <span className="text-xs uppercase tracking-widest text-[var(--clay)]">
               [ 01 / IDENTIDAD ]
@@ -355,7 +355,7 @@ export default function PerfilPage() {
         </section>
 
         {/* SECCIÓN 2: PREFERENCIAS MUSICALES Y RECOMENDACIÓN */}
-        <section className="border border-[var(--olive)] bg-[#32302f]/40 p-6">
+        <section className="border border-[var(--olive)] bg-[#32302f]/40 backdrop-blur-md p-6">
           <div className="mb-5 border-b border-[var(--olive)] pb-3">
             <span className="text-xs uppercase tracking-widest text-[var(--copper)]">
               [ 02 / MOTOR MUSICAL ]

@@ -219,7 +219,8 @@
 .list-actions a { color: var(--cream); font-size: 12px; }
 .list-actions a:hover { color: var(--clay); }
 .song-workspace { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
-.song-panel { min-width: 0; border: 1px solid var(--olive); }
+/* Cristal esmerilado: difumina el fondo ASCII que queda detrás de las cajas. */
+.song-panel { min-width: 0; border: 1px solid var(--olive); background: color-mix(in srgb, var(--forest) 55%, transparent); backdrop-filter: blur(10px); }
 .song-panel-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 52px; padding: 12px 18px; border-bottom: 1px solid var(--olive); background: color-mix(in srgb, var(--olive) 20%, var(--forest)); }
 .song-panel-header h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .song-panel-header > span { font-size: 12px; color: var(--cream); }
@@ -264,6 +265,8 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.2; }
 }
+/* Giro del vinilo ASCII del fondo. `rotate` y no `transform`, que lo usa el parallax. */
+@keyframes vinyl-spin { to { rotate: 360deg; } }
 .exploration-status-pending { display: flex; align-items: center; gap: 10px; color: var(--clay); font-weight: 600; font-variant-numeric: tabular-nums; }
 .exploration-pending-indicator { display: inline-block; width: 8px; height: 14px; background: var(--clay); flex-shrink: 0; animation: graphu-blink 1s steps(2, start) infinite; }
 .exploration-actions, .exploration-attempt { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px 18px; }

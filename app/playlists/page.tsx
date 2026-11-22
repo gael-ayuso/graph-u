@@ -255,7 +255,7 @@ export default function PlaylistsPage() {
       )}
 
       {showCreateForm && (
-        <section className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 p-6">
+        <section className="mb-8 border border-[var(--clay)] bg-[#32302f]/60 backdrop-blur-md p-6">
           <h2 className="mb-4 text-lg font-bold text-[var(--cream)]">Crear nueva playlist</h2>
           <form
             onSubmit={(e) => {
@@ -353,7 +353,7 @@ export default function PlaylistsPage() {
             return (
               <article
                 key={pl.id}
-                className="flex flex-col justify-between border border-[var(--olive)] bg-[#32302f]/40 p-5"
+                className="flex flex-col justify-between border border-[var(--olive)] bg-[#32302f]/40 backdrop-blur-md p-5"
               >
                 <div className="flex items-start gap-4">
                   <PlaylistCoverMosaic covers={pl.previewCovers} name={pl.name} size={68} />

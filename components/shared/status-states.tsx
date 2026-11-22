@@ -36,7 +36,7 @@ export function EmptyState({
   eyebrow = "[ SIN REGISTROS ]",
 }: EmptyStateProps) {
   return (
-    <div className="border border-dashed border-[var(--olive)] bg-[var(--forest)] p-8 text-center font-mono">
+    <div className="border border-dashed border-[var(--olive)] bg-[var(--forest)]/60 p-8 text-center font-mono backdrop-blur-md">
       <p className="text-xs uppercase tracking-widest text-[var(--olive)] mb-2">
         {eyebrow}
       </p>

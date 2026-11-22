@@ -28,7 +28,7 @@ export const INTRO_ALBUM_LAYERS: readonly IntroAlbumLayer[] = [
 
 export const INTRO_STORAGE_KEY = "graphu_intro_seen_v1";
 
-// loading: las portadas se apilan y cuenta 0-100 %; scatter: se dispersan y aparece "Entrar";
+// loading: las portadas se apilan y cuenta 0-100 %; scatter: se dispersan y entra solo a la página;
 // exiting: fundido hacia la página.
 type IntroPhase = "loading" | "scatter" | "exiting" | "done";
 
@@ -40,6 +40,8 @@ type IntroOverlayProps = {
 export const INTRO_DURATION_MS = 4000;
 const SCATTER_DELAY_MS = INTRO_DURATION_MS + 700;
 const EXIT_DURATION_MS = 550;
+// Lo que tarda la dispersión (1300 ms + el retraso de la última portada) antes de entrar sola.
+const SCATTER_HOLD_MS = 1800;
 
 function markSeen() {
   try {
@@ -56,8 +58,6 @@ export default function IntroOverlay({
   const [phase, setPhase] = useState<IntroPhase>("loading");
   const [count, setCount] = useState(0);
   const onCompleteRef = useRef(onComplete);
-  const enterButtonRef = useRef<HTMLButtonElement | null>(null);
-
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
@@ -127,6 +127,12 @@ export default function IntroOverlay({
   }, [phase]);
 
   useEffect(() => {
+    if (phase !== "scatter") return;
+    const timer = setTimeout(enter, SCATTER_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [phase, enter]);
+
+  useEffect(() => {
     if (phase !== "exiting") return;
     const timer = setTimeout(() => {
       setPhase("done");
@@ -152,13 +158,6 @@ export default function IntroOverlay({
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [phase]);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (phase === "scatter") {
-      enterButtonRef.current?.focus();
-    }
   }, [phase]);
 
   if (phase === "done") {
@@ -213,19 +212,7 @@ export default function IntroOverlay({
           {count}
           <span>%</span>
         </div>
-        <div className={`${styles.introLoading} ${scattered ? styles.introFadeOut : ""}`} aria-hidden="true">
-          Cargando
-        </div>
       </div>
-
-      <button
-        ref={enterButtonRef}
-        type="button"
-        className={styles.introEnter}
-        onClick={enter}
-      >
-        {scattered ? "Entrar" : "Saltar intro"}
-      </button>
     </div>
   );
 }
